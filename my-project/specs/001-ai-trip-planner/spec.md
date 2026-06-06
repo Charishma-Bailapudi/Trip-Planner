@@ -91,3 +91,9 @@ As a traveler, I want to add multiple destinations to a single trip, so that I c
 - External APIs for maps, weather, and transport options will be accessible and responsive.
 - Mobile responsive layout is expected since travelers often plan or view trips on mobile devices.
 - The application will reuse standard email/password authentication or SSO if authentication is required.
+
+## Technology Stack
+
+- **Frontend**: React.js
+- **Backend**: Node.js with Express.js
+- **Database**: MongoDB
