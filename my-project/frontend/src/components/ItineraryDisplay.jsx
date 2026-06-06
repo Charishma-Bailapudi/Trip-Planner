@@ -1,7 +1,14 @@
-import React, { useState } from 'react';
-import { Clock, MapPin, DollarSign, Calendar, Navigation } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Clock, MapPin, DollarSign, Calendar, Navigation, Eye } from 'lucide-react';
 
 const ItineraryDisplay = ({ itinerary, onActivityClick, activeActivityId, selectedDayIndex, setSelectedDayIndex }) => {
+  
+  // Safe guard: Reset day selection if it exceeds bounds of the new itinerary (prevents blank screen)
+  useEffect(() => {
+    if (itinerary && selectedDayIndex >= itinerary.length) {
+      setSelectedDayIndex(0);
+    }
+  }, [itinerary, selectedDayIndex, setSelectedDayIndex]);
 
   if (!itinerary || itinerary.length === 0) {
     return (
@@ -12,7 +19,9 @@ const ItineraryDisplay = ({ itinerary, onActivityClick, activeActivityId, select
     );
   }
 
-  const activeDay = itinerary[selectedDayIndex];
+  // Safety assignment
+  const activeDay = itinerary[selectedDayIndex] || itinerary[0];
+  if (!activeDay) return null;
 
   return (
     <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', height: '100%', minHeight: '500px' }}>
@@ -79,32 +88,57 @@ const ItineraryDisplay = ({ itinerary, onActivityClick, activeActivityId, select
                 <h4 style={{ fontSize: '1.1rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>{activity.title}</h4>
                 <p style={{ fontSize: '0.9rem', marginBottom: '0.8rem', color: 'var(--text-secondary)' }}>{activity.description}</p>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                  <MapPin size={14} style={{ color: 'var(--accent)' }} />
-                  <span>{activity.location.name}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    <MapPin size={14} style={{ color: 'var(--accent)' }} />
+                    <span>{activity.location.name}</span>
+                  </div>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', color: 'var(--primary)' }}>
+                    <Eye size={12} /> Map Focus
+                  </span>
                 </div>
               </div>
 
-              {/* Transit Card (if there's transit following this activity) */}
-              {activeDay.transits && activeDay.transits[actIdx] && (
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '0.8rem', 
-                  margin: '0 1.5rem', 
-                  padding: '0.5rem 0',
-                  borderLeft: '2px dashed rgba(255,255,255,0.1)',
-                  paddingLeft: '1.2rem',
-                  fontSize: '0.85rem',
-                  color: 'var(--text-muted)'
-                }}>
-                  <Navigation size={14} style={{ transform: 'rotate(45deg)', color: 'var(--primary)' }} />
-                  <span>
-                    Take <strong>{activeDay.transits[actIdx].mode}</strong> to next stop ({activeDay.transits[actIdx].durationMinutes} mins
-                    {activeDay.transits[actIdx].estimatedCost > 0 && ` • ~$${activeDay.transits[actIdx].estimatedCost}`})
-                  </span>
-                </div>
-              )}
+              {/* Transit Card (detailed connection legs) */}
+              {activeDay.transits && activeDay.transits[actIdx] && (() => {
+                const transit = activeDay.transits[actIdx];
+                return (
+                  <div style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    gap: '0.4rem', 
+                    margin: '0 1.5rem', 
+                    padding: '0.8rem 1.2rem',
+                    borderLeft: '2px dashed var(--primary-glow)',
+                    background: 'var(--bg-secondary)',
+                    borderRadius: '8px',
+                    fontSize: '0.85rem',
+                    color: 'var(--text-secondary)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: 'var(--secondary)', fontWeight: 600 }}>
+                      <Navigation size={14} style={{ transform: 'rotate(45deg)' }} />
+                      <span style={{ textTransform: 'capitalize' }}>
+                        {transit.transitNumber || `${transit.mode} connection`}
+                      </span>
+                      {transit.estimatedCost > 0 && (
+                        <span style={{ color: 'var(--success)', fontSize: '0.8rem', fontWeight: 500 }}>
+                          • Est. Cost: ${transit.estimatedCost}
+                        </span>
+                      )}
+                    </div>
+                    {transit.departureTime && transit.arrivalTime && (
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+                        Time: {transit.departureTime} → {transit.arrivalTime} ({transit.durationMinutes} mins)
+                      </div>
+                    )}
+                    {transit.originStation && transit.destinationStation && (
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        Route: {transit.originStation} to {transit.destinationStation}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           );
         })}

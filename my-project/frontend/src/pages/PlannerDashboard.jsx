@@ -5,7 +5,7 @@ import RouteMap from '../components/RouteMap';
 import WeatherWidget from '../components/WeatherWidget';
 import TransportSuggestions from '../components/TransportSuggestions';
 import { fetchTrips, fetchTripById, generateTrip, deleteTrip } from '../services/api';
-import { Compass, Trash2, Calendar, MapPin, Loader2 } from 'lucide-react';
+import { Compass, Trash2, Calendar, MapPin, Loader2, Download } from 'lucide-react';
 
 const PlannerDashboard = () => {
   const [trips, setTrips] = useState([]);
@@ -14,6 +14,58 @@ const PlannerDashboard = () => {
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const handleDownloadTrip = () => {
+    if (!activeTrip) return;
+    
+    let mdContent = `# Trip Plan: ${activeTrip.title}\n`;
+    mdContent += `**Dates:** ${new Date(activeTrip.startDate).toLocaleDateString()} to ${new Date(activeTrip.endDate).toLocaleDateString()}\n`;
+    mdContent += `**Destinations:** ${activeTrip.destinations.map(d => `${d.name} (${d.stayDurationDays} days)`).join(', ')}\n`;
+    mdContent += `**Budget Mode:** ${activeTrip.budget.mode === 'tier' ? `${activeTrip.budget.tier} tier` : `${activeTrip.budget.limitAmount} limit`}\n\n`;
+    mdContent += `=========================================\n\n`;
+
+    activeTrip.itinerary.forEach(day => {
+      mdContent += `## Day ${day.dayNumber} - ${new Date(day.date).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}\n`;
+      if (day.weather) {
+        mdContent += `**Weather:** ${day.weather.tempCelsius}°C, ${day.weather.condition} (${day.weather.description})\n\n`;
+      }
+      
+      mdContent += `### Activities:\n`;
+      day.activities.forEach((act, idx) => {
+        mdContent += `${idx + 1}. **[${act.timeSlot}] ${act.title}**\n`;
+        mdContent += `   - *Location:* ${act.location.name} (${act.location.latitude}, ${act.location.longitude})\n`;
+        mdContent += `   - *Cost:* ${act.cost === 0 ? 'Free' : `$${act.cost}`}\n`;
+        if (act.description) {
+          mdContent += `   - *Description:* ${act.description}\n`;
+        }
+        mdContent += `\n`;
+      });
+
+      if (day.transits && day.transits.length > 0) {
+        mdContent += `### Transit Connections:\n`;
+        day.transits.forEach((tr, idx) => {
+          mdContent += `- **${tr.transitNumber || tr.mode.toUpperCase() + ' connection'}** (${tr.durationMinutes} mins)\n`;
+          mdContent += `  - *From:* ${tr.origin} ${tr.originStation ? `(${tr.originStation})` : ''}\n`;
+          mdContent += `  - *To:* ${tr.destination} ${tr.destinationStation ? `(${tr.destinationStation})` : ''}\n`;
+          if (tr.departureTime && tr.arrivalTime) {
+            mdContent += `  - *Schedule:* ${tr.departureTime} → ${tr.arrivalTime}\n`;
+          }
+          mdContent += `  - *Estimated Cost:* ${tr.estimatedCost === 0 ? 'Free' : `$${tr.estimatedCost}`}\n`;
+          mdContent += `\n`;
+        });
+      }
+      mdContent += `-----------------------------------------\n\n`;
+    });
+
+    const blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `${activeTrip.title.toLowerCase().replace(/\s+/g, '_')}_itinerary.md`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   // Fetch all saved trips on load
   useEffect(() => {
@@ -195,6 +247,35 @@ const PlannerDashboard = () => {
           ) : activeTrip ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2.0rem', height: '100%' }}>
               
+              {/* Active Trip Header Banner */}
+              <div className="glass-panel" style={{ padding: '1.2rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h2 style={{ fontSize: '1.4rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                    {activeTrip.title}
+                  </h2>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0' }}>
+                    {new Date(activeTrip.startDate).toLocaleDateString()} – {new Date(activeTrip.endDate).toLocaleDateString()} • {activeTrip.destinations.map(d => d.name).join(', ')}
+                  </p>
+                </div>
+                <button
+                  onClick={handleDownloadTrip}
+                  className="btn btn-primary"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.6rem 1.2rem',
+                    fontSize: '0.9rem',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: 600
+                  }}
+                >
+                  <Download size={16} />
+                  Download Plan
+                </button>
+              </div>
+
               {/* Weather Forecast Widget */}
               <WeatherWidget weather={activeTrip.itinerary[selectedDayIndex]?.weather} />
 

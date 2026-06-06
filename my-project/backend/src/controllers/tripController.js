@@ -49,12 +49,26 @@ const createTrip = async (req, res, next) => {
               act2.location,
               budget.mode
             );
+            
+            // Format mock schedules
+            const depHour = 9 + idx * 3;
+            const depTime = `${depHour.toString().padStart(2, '0')}:00 ${depHour >= 12 ? 'PM' : 'AM'}`;
+            const arrMins = transitOpt.durationMinutes;
+            const arrHour = depHour + Math.floor((arrMins) / 60);
+            const arrMinVal = arrMins % 60;
+            const arrTime = `${arrHour.toString().padStart(2, '0')}:${arrMinVal.toString().padStart(2, '0')} ${arrHour >= 12 ? 'PM' : 'AM'}`;
+
             transits.push({
               origin: act1.location.name,
               destination: act2.location.name,
               mode: transitOpt.mode,
               durationMinutes: transitOpt.durationMinutes,
-              estimatedCost: transitOpt.estimatedCost
+              estimatedCost: transitOpt.estimatedCost,
+              transitNumber: transitOpt.mode === 'train' ? `Train TR-${100 + idx}` : transitOpt.mode === 'flight' ? `Flight FL-${200 + idx}` : transitOpt.mode === 'bus' ? `Bus B-${10 + idx}` : 'Local Transit',
+              departureTime: depTime,
+              arrivalTime: arrTime,
+              originStation: `${act1.location.name} Station`,
+              destinationStation: `${act2.location.name} Station`
             });
           } catch (err) {
             transits.push({
@@ -62,7 +76,12 @@ const createTrip = async (req, res, next) => {
               destination: act2.location.name,
               mode: transportPreferences[0] || 'driving',
               durationMinutes: 20,
-              estimatedCost: 10
+              estimatedCost: 10,
+              transitNumber: 'Local Route',
+              departureTime: '12:00 PM',
+              arrivalTime: '12:20 PM',
+              originStation: `${act1.location.name} Terminal`,
+              destinationStation: `${act2.location.name} Terminal`
             });
           }
         }

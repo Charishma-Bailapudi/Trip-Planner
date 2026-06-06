@@ -30,7 +30,12 @@ const TransitSegmentSchema = new mongoose.Schema({
   destination: { type: String, required: true },
   mode: { type: String, required: true },
   durationMinutes: { type: Number, required: true },
-  estimatedCost: { type: Number, default: 0 }
+  estimatedCost: { type: Number, default: 0 },
+  transitNumber: { type: String },      // e.g. Train 9015, Flight BA-234
+  departureTime: { type: String },      // e.g. "09:30 AM"
+  arrivalTime: { type: String },        // e.g. "11:45 AM"
+  originStation: { type: String },      // e.g. "Paris Gare de Lyon"
+  destinationStation: { type: String }  // e.g. "Lyon Part Dieu"
 });
 
 // Schema for each day in the trip itinerary

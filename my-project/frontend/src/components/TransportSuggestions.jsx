@@ -68,32 +68,58 @@ const TransportSuggestions = ({ itinerary }) => {
       </div>
 
       {/* Individual Transit Legs */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '180px', overflowY: 'auto' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '300px', overflowY: 'auto' }}>
         {allTransits.map((transit, index) => (
           <div 
             key={index}
             style={{ 
               display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              padding: '0.5rem 0.75rem',
-              borderRadius: '6px',
+              flexDirection: 'column',
+              gap: '0.4rem',
+              padding: '0.75rem 1rem',
+              borderRadius: '8px',
               background: 'rgba(255,255,255,0.02)',
+              border: '1px solid rgba(255,255,255,0.04)',
               fontSize: '0.85rem'
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-              <div style={{ color: 'var(--primary)', display: 'flex', alignItems: 'center' }}>
-                {getTransportIcon(transit.mode)}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <div style={{ color: 'var(--primary)', display: 'flex', alignItems: 'center' }}>
+                  {getTransportIcon(transit.mode)}
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+                    {transit.transitNumber || `${transit.mode.toUpperCase()} Conn`}
+                  </span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginLeft: '0.5rem' }}>
+                    (Day {transit.dayNumber})
+                  </span>
+                </div>
               </div>
-              <div>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', display: 'block' }}>Day {transit.dayNumber} Leg</span>
-                <span style={{ color: 'var(--text-primary)' }}>{transit.origin} → {transit.destination}</span>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--success)', fontWeight: 600 }}>
+                  {transit.estimatedCost > 0 ? `$${transit.estimatedCost}` : 'Free'}
+                </span>
               </div>
             </div>
-            <div style={{ textAlign: 'right' }}>
-              <span style={{ fontWeight: 600, display: 'block' }}>{transit.durationMinutes} mins</span>
-              <span style={{ fontSize: '0.75rem', color: 'var(--success)' }}>{transit.estimatedCost > 0 ? `$${transit.estimatedCost}` : 'Free'}</span>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', paddingLeft: '1.6rem' }}>
+              <div style={{ color: 'var(--text-secondary)' }}>
+                <strong>{transit.origin}</strong> → <strong>{transit.destination}</strong>
+              </div>
+              
+              {transit.departureTime && transit.arrivalTime && (
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  Schedule: <span style={{ color: 'var(--secondary)' }}>{transit.departureTime}</span> – <span style={{ color: 'var(--secondary)' }}>{transit.arrivalTime}</span> ({transit.durationMinutes} mins)
+                </div>
+              )}
+              
+              {transit.originStation && transit.destinationStation && (
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                  Stations: {transit.originStation} to {transit.destinationStation}
+                </div>
+              )}
             </div>
           </div>
         ))}

@@ -40,9 +40,14 @@ const itineraryResponseSchema = {
             destination: { type: 'STRING' },
             mode: { type: 'STRING', description: 'Mode of transport, e.g. flight, train, bus, walk, driving' },
             durationMinutes: { type: 'INTEGER' },
-            estimatedCost: { type: 'NUMBER' }
+            estimatedCost: { type: 'NUMBER' },
+            transitNumber: { type: 'STRING', description: 'Identify specific train number (e.g. Train T9201), flight number (e.g. Flight LH-432), or bus number if applicable' },
+            departureTime: { type: 'STRING', description: 'Departure time, e.g. "08:30 AM" or "14:15"' },
+            arrivalTime: { type: 'STRING', description: 'Arrival time, e.g. "10:45 AM" or "16:30"' },
+            originStation: { type: 'STRING', description: 'Name of departure station or airport, e.g. London St Pancras or JFK Airport' },
+            destinationStation: { type: 'STRING', description: 'Name of arrival station or airport, e.g. Paris Gare du Nord or Heathrow Airport' }
           },
-          required: ['origin', 'destination', 'mode', 'durationMinutes', 'estimatedCost']
+          required: ['origin', 'destination', 'mode', 'durationMinutes', 'estimatedCost', 'transitNumber', 'departureTime', 'arrivalTime', 'originStation', 'destinationStation']
         }
       }
     },
@@ -82,7 +87,7 @@ const generateItinerary = async (tripData) => {
     Instructions:
     1. Plan a realistic and logical timeline for each day.
     2. Suggest 2-3 activities per day. For each activity provide location name, approximate coordinates (latitude and longitude), and a cost estimate aligning with the budget mode.
-    3. Suggest logical transit legs between activities or locations using the specified transport preferences.
+    3. Suggest logical transit legs between activities or locations using the specified transport preferences. For every transit leg (flights, trains, buses), you MUST invent realistic transport numbers (e.g. train number like "Train TGV-9012", flight number like "Flight BA-234"), select logical departure and arrival times, and specify the names of origin/destination stations or airports.
     4. Return ONLY the JSON array matching the schema.`;
 
     const result = await model.generateContent(prompt);
@@ -179,7 +184,12 @@ function generateMockItinerary(tripData) {
           destination: `${currentCity} Market District`,
           mode: tripData.transportPreferences[0] || 'walk',
           durationMinutes: 15,
-          estimatedCost: 5
+          estimatedCost: 5,
+          transitNumber: tripData.transportPreferences[0] === 'train' ? 'Train TGV-9012' : tripData.transportPreferences[0] === 'flight' ? 'Flight AF-120' : 'Bus B-89',
+          departureTime: '10:15 AM',
+          arrivalTime: '10:30 AM',
+          originStation: `${currentCity} Central Station`,
+          destinationStation: `${currentCity} Market Plaza`
         }
       ]
     });
