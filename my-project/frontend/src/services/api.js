@@ -104,3 +104,13 @@ export const deleteTrip = async (id) => {
     throw error.response?.data || new Error('Failed to delete trip');
   }
 };
+
+export const selectTransitOption = async (tripId, transitId, optionIndex) => {
+  try {
+    const response = await apiClient.put(`/trips/${tripId}/transit/${transitId}/select`, { optionIndex });
+    return response.data;
+  } catch (error) {
+    console.error(`[API Client] Error selecting transit option ${optionIndex} for transit ${transitId} in trip ${tripId}:`, error);
+    throw error.response?.data || new Error('Failed to update transit selection');
+  }
+};

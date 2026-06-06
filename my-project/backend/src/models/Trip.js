@@ -35,7 +35,18 @@ const TransitSegmentSchema = new mongoose.Schema({
   departureTime: { type: String },      // e.g. "09:30 AM"
   arrivalTime: { type: String },        // e.g. "11:45 AM"
   originStation: { type: String },      // e.g. "Paris Gare de Lyon"
-  destinationStation: { type: String }  // e.g. "Lyon Part Dieu"
+  destinationStation: { type: String },  // e.g. "Lyon Part Dieu"
+  options: [{
+    mode: { type: String },
+    transitNumber: { type: String },
+    departureTime: { type: String },
+    arrivalTime: { type: String },
+    durationMinutes: { type: Number },
+    estimatedCost: { type: Number },
+    originStation: { type: String },
+    destinationStation: { type: String }
+  }],
+  selectedOptionIndex: { type: Number, default: 0 }
 });
 
 // Schema for each day in the trip itinerary
@@ -68,6 +79,10 @@ const TripSchema = new mongoose.Schema({
   title: {
     type: String,
     required: [true, 'Trip title is required']
+  },
+  sourcePlace: {
+    type: String,
+    required: [true, 'Starting source place is required']
   },
   destinations: [{
     name: { type: String, required: true },

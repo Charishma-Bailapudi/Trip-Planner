@@ -77,6 +77,127 @@ const getTransportOptions = async (origin, destination, budgetMode) => {
   }
 };
 
+const getAllTransportOptions = (originName, destinationName, preferences, budgetMode, currency) => {
+  const options = [];
+  const rate = currency === 'INR' ? 80 : currency === 'EUR' ? 0.9 : currency === 'GBP' ? 0.8 : 1;
+
+  const activePrefs = (preferences && preferences.length > 0) ? preferences : ['flight', 'train', 'bus'];
+
+  activePrefs.forEach(pref => {
+    const mode = pref.toLowerCase();
+    if (mode === 'flight') {
+      options.push(
+        {
+          mode: 'flight',
+          transitNumber: `Flight FL-${100 + Math.floor(Math.random() * 900)}`,
+          departureTime: '07:30 AM',
+          arrivalTime: '09:45 AM',
+          durationMinutes: 135,
+          estimatedCost: Math.round(150 * rate),
+          originStation: `${originName} Airport (T3)`,
+          destinationStation: `${destinationName} Airport (T1)`
+        },
+        {
+          mode: 'flight',
+          transitNumber: `Flight FL-${100 + Math.floor(Math.random() * 900)}`,
+          departureTime: '02:15 PM',
+          arrivalTime: '04:30 PM',
+          durationMinutes: 135,
+          estimatedCost: Math.round(180 * rate),
+          originStation: `${originName} Airport (T3)`,
+          destinationStation: `${destinationName} Airport (T1)`
+        },
+        {
+          mode: 'flight',
+          transitNumber: `Flight FL-${100 + Math.floor(Math.random() * 900)}`,
+          departureTime: '08:00 PM',
+          arrivalTime: '10:15 PM',
+          durationMinutes: 135,
+          estimatedCost: Math.round(120 * rate),
+          originStation: `${originName} Airport (T3)`,
+          destinationStation: `${destinationName} Airport (T1)`
+        }
+      );
+    } else if (mode === 'train') {
+      options.push(
+        {
+          mode: 'train',
+          transitNumber: `Train TR-${2000 + Math.floor(Math.random() * 8000)}`,
+          departureTime: '06:00 AM',
+          arrivalTime: '11:30 AM',
+          durationMinutes: 330,
+          estimatedCost: Math.round(40 * rate),
+          originStation: `${originName} Central Station`,
+          destinationStation: `${destinationName} Main Station`
+        },
+        {
+          mode: 'train',
+          transitNumber: `Train TR-${2000 + Math.floor(Math.random() * 8000)}`,
+          departureTime: '12:00 PM',
+          arrivalTime: '05:45 PM',
+          durationMinutes: 345,
+          estimatedCost: Math.round(55 * rate),
+          originStation: `${originName} Central Station`,
+          destinationStation: `${destinationName} Junction`
+        },
+        {
+          mode: 'train',
+          transitNumber: `Train TR-${2000 + Math.floor(Math.random() * 8000)}`,
+          departureTime: '04:30 PM',
+          arrivalTime: '10:00 PM',
+          durationMinutes: 330,
+          estimatedCost: Math.round(85 * rate),
+          originStation: `${originName} Central Station`,
+          destinationStation: `${destinationName} Main Station`
+        }
+      );
+    } else if (mode === 'bus') {
+      options.push(
+        {
+          mode: 'bus',
+          transitNumber: `Bus Volvo BS-${100 + Math.floor(Math.random() * 900)}`,
+          departureTime: '08:00 AM',
+          arrivalTime: '02:30 PM',
+          durationMinutes: 390,
+          estimatedCost: Math.round(15 * rate),
+          originStation: `${originName} Bus Terminus`,
+          destinationStation: `${destinationName} Bus Junction`
+        },
+        {
+          mode: 'bus',
+          transitNumber: `Bus Sleeper BS-${100 + Math.floor(Math.random() * 900)}`,
+          departureTime: '01:00 PM',
+          arrivalTime: '07:45 PM',
+          durationMinutes: 405,
+          estimatedCost: Math.round(20 * rate),
+          originStation: `${originName} Bus Stand`,
+          destinationStation: `${destinationName} Bus Stand`
+        },
+        {
+          mode: 'bus',
+          transitNumber: `Bus Luxury BS-${100 + Math.floor(Math.random() * 900)}`,
+          departureTime: '09:00 PM',
+          arrivalTime: '03:30 AM',
+          durationMinutes: 390,
+          estimatedCost: Math.round(30 * rate),
+          originStation: `${originName} Bus Terminus`,
+          destinationStation: `${destinationName} Bus Junction`
+        }
+      );
+    }
+  });
+
+  // Scale estimates based on budget mode
+  if (budgetMode === 'tier') {
+    options.forEach(opt => {
+      opt.estimatedCost = Math.round(opt.estimatedCost * 0.9);
+    });
+  }
+
+  return options;
+};
+
 module.exports = {
-  getTransportOptions
+  getTransportOptions,
+  getAllTransportOptions
 };

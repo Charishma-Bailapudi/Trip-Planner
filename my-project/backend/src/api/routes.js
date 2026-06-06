@@ -4,7 +4,8 @@ const {
   createTrip,
   getTrips,
   getTripById,
-  deleteTrip
+  deleteTrip,
+  selectTransitOption
 } = require('../controllers/tripController');
 
 const { protect } = require('../middleware/authMiddleware');
@@ -18,5 +19,8 @@ router.route('/')
 router.route('/:id')
   .get(getTripById)
   .delete(deleteTrip);
+
+router.route('/:id/transit/:transitId/select')
+  .put(selectTransitOption);
 
 module.exports = router;

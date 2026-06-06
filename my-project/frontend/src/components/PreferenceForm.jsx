@@ -3,6 +3,7 @@ import { Plus, Trash2 } from 'lucide-react';
 
 const PreferenceForm = ({ onSubmit, isLoading }) => {
   const [title, setTitle] = useState('');
+  const [sourcePlace, setSourcePlace] = useState('');
   const [destinations, setDestinations] = useState([{ name: '', stayDurationDays: 3 }]);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -54,7 +55,7 @@ const PreferenceForm = ({ onSubmit, isLoading }) => {
     setError('');
 
     // Validations
-    if (!title.trim() || !startDate || !endDate) {
+    if (!title.trim() || !sourcePlace.trim() || !startDate || !endDate) {
       setError('Please fill in all mandatory fields.');
       return;
     }
@@ -79,6 +80,7 @@ const PreferenceForm = ({ onSubmit, isLoading }) => {
     // Prepare API formatted data
     const tripData = {
       title,
+      sourcePlace,
       destinations,
       startDate,
       endDate,
@@ -113,6 +115,18 @@ const PreferenceForm = ({ onSubmit, isLoading }) => {
           placeholder="e.g. Summer EuroTrip" 
           value={title} 
           onChange={(e) => setTitle(e.target.value)}
+          required
+        />
+      </div>
+
+      <div>
+        <label htmlFor="trip-source">Source Place (Starting Point)</label>
+        <input 
+          id="trip-source"
+          type="text" 
+          placeholder="e.g. New Delhi" 
+          value={sourcePlace} 
+          onChange={(e) => setSourcePlace(e.target.value)}
           required
         />
       </div>

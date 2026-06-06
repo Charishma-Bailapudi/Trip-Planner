@@ -4,7 +4,7 @@ import ItineraryDisplay from '../components/ItineraryDisplay';
 import RouteMap from '../components/RouteMap';
 import WeatherWidget from '../components/WeatherWidget';
 import TransportSuggestions from '../components/TransportSuggestions';
-import { fetchTrips, fetchTripById, generateTrip, deleteTrip } from '../services/api';
+import { fetchTrips, fetchTripById, generateTrip, deleteTrip, selectTransitOption } from '../services/api';
 import { Compass, Trash2, Calendar, MapPin, Loader2, Download } from 'lucide-react';
 
 const PlannerDashboard = ({ user, onLogout }) => {
@@ -146,6 +146,19 @@ const PlannerDashboard = ({ user, onLogout }) => {
       await loadTrips();
     } catch (err) {
       alert('Failed to delete trip.');
+      handleAuthError(err);
+    }
+  };
+
+  const handleSelectTransitOption = async (transitId, optionIndex) => {
+    if (!activeTrip) return;
+    try {
+      const updatedTrip = await selectTransitOption(activeTrip._id, transitId, optionIndex);
+      setActiveTrip(updatedTrip);
+      await loadTrips();
+    } catch (err) {
+      console.error('Failed to change transit option', err);
+      alert(err.message || 'Failed to change transport option');
       handleAuthError(err);
     }
   };
@@ -327,6 +340,7 @@ const PlannerDashboard = ({ user, onLogout }) => {
                 selectedDayIndex={selectedDayIndex}
                 setSelectedDayIndex={setSelectedDayIndex}
                 currency={activeTrip.budget.currency}
+                onSelectTransitOption={handleSelectTransitOption}
               />
             </div>
           ) : (

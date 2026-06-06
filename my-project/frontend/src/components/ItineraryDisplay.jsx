@@ -12,7 +12,7 @@ const getCurrencySymbol = (currency) => {
   }
 };
 
-const ItineraryDisplay = ({ itinerary, onActivityClick, activeActivityId, selectedDayIndex, setSelectedDayIndex, currency }) => {
+const ItineraryDisplay = ({ itinerary, onActivityClick, activeActivityId, selectedDayIndex, setSelectedDayIndex, currency, onSelectTransitOption }) => {
   
   // Safe guard: Reset day selection if it exceeds bounds of the new itinerary (prevents blank screen)
   useEffect(() => {
@@ -33,6 +33,80 @@ const ItineraryDisplay = ({ itinerary, onActivityClick, activeActivityId, select
   // Safety assignment
   const activeDay = itinerary[selectedDayIndex] || itinerary[0];
   if (!activeDay) return null;
+
+  const renderTransitCard = (transit, label = 'Transit Connection') => {
+    if (!transit) return null;
+    return (
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        gap: '0.4rem', 
+        margin: '0.5rem 1.5rem', 
+        padding: '0.8rem 1.2rem',
+        borderLeft: '2px dashed var(--primary-glow)',
+        background: 'var(--bg-secondary)',
+        borderRadius: '8px',
+        fontSize: '0.85rem',
+        color: 'var(--text-secondary)'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: 'var(--secondary)', fontWeight: 600 }}>
+            <Navigation size={14} style={{ transform: 'rotate(45deg)' }} />
+            <span style={{ textTransform: 'capitalize' }}>
+              {transit.transitNumber || `${transit.mode} connection`}
+            </span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              ({label})
+            </span>
+          </div>
+          {transit.estimatedCost > 0 && (
+            <span style={{ color: 'var(--success)', fontSize: '0.85rem', fontWeight: 600 }}>
+              {getCurrencySymbol(currency)}{transit.estimatedCost}
+            </span>
+          )}
+        </div>
+        
+        {transit.departureTime && transit.arrivalTime && (
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+            Time: {transit.departureTime} → {transit.arrivalTime} ({transit.durationMinutes} mins)
+          </div>
+        )}
+        
+        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          Route: <strong>{transit.origin}</strong> ({transit.originStation || 'Start'}) to <strong>{transit.destination}</strong> ({transit.destinationStation || 'End'})
+        </div>
+
+        {/* Alternative Options Selection Dropdown */}
+        {transit.options && transit.options.length > 0 && (
+          <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+            <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+              Alternate Transit Options:
+            </label>
+            <select
+              value={transit.selectedOptionIndex || 0}
+              onChange={(e) => onSelectTransitOption && onSelectTransitOption(transit._id, Number(e.target.value))}
+              style={{
+                padding: '0.3rem 0.6rem',
+                fontSize: '0.8rem',
+                borderRadius: '6px',
+                background: 'var(--bg-tertiary)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                color: 'var(--text-primary)',
+                cursor: 'pointer',
+                outline: 'none'
+              }}
+            >
+              {transit.options.map((opt, idx) => (
+                <option key={idx} value={idx}>
+                  {opt.mode.toUpperCase()} Option {idx + 1}: {opt.transitNumber} ({opt.departureTime} - {opt.arrivalTime}) — {getCurrencySymbol(currency)}{opt.estimatedCost}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', height: '100%', minHeight: '500px' }}>
@@ -69,6 +143,17 @@ const ItineraryDisplay = ({ itinerary, onActivityClick, activeActivityId, select
           {new Date(activeDay.date).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}
         </h3>
 
+        {/* Start Transit (e.g. from Source Place to first activity on Day 1) */}
+        {activeDay.dayNumber === 1 && activeDay.transits && activeDay.transits.length > 0 && (() => {
+          // The prepended start transit connects sourcePlace to Day 1 first activity
+          const startTransit = activeDay.transits[0];
+          // Simple verification
+          if (startTransit && startTransit.origin !== startTransit.destination) {
+            return renderTransitCard(startTransit, 'Start Journey');
+          }
+          return null;
+        })()}
+
         {activeDay.activities.map((activity, actIdx) => {
           const isSelected = activeActivityId === activity._id;
 
@@ -89,7 +174,7 @@ const ItineraryDisplay = ({ itinerary, onActivityClick, activeActivityId, select
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--secondary)' }}>
                     <Clock size={16} />
                     <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{activity.timeSlot}</span>
-                   </div>
+                  </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', background: 'rgba(46, 213, 115, 0.1)', color: 'var(--success)', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600 }}>
                     <span>{activity.cost === 0 ? 'Free' : `${getCurrencySymbol(currency)}${activity.cost}`}</span>
                   </div>
@@ -109,45 +194,14 @@ const ItineraryDisplay = ({ itinerary, onActivityClick, activeActivityId, select
                 </div>
               </div>
 
-              {/* Transit Card (detailed connection legs) */}
-              {activeDay.transits && activeDay.transits[actIdx] && (() => {
-                const transit = activeDay.transits[actIdx];
-                return (
-                  <div style={{ 
-                    display: 'flex', 
-                    flexDirection: 'column',
-                    gap: '0.4rem', 
-                    margin: '0 1.5rem', 
-                    padding: '0.8rem 1.2rem',
-                    borderLeft: '2px dashed var(--primary-glow)',
-                    background: 'var(--bg-secondary)',
-                    borderRadius: '8px',
-                    fontSize: '0.85rem',
-                    color: 'var(--text-secondary)'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: 'var(--secondary)', fontWeight: 600 }}>
-                      <Navigation size={14} style={{ transform: 'rotate(45deg)' }} />
-                      <span style={{ textTransform: 'capitalize' }}>
-                        {transit.transitNumber || `${transit.mode} connection`}
-                      </span>
-                      {transit.estimatedCost > 0 && (
-                        <span style={{ color: 'var(--success)', fontSize: '0.8rem', fontWeight: 500 }}>
-                          • Est. Cost: {getCurrencySymbol(currency)}{transit.estimatedCost}
-                        </span>
-                      )}
-                    </div>
-                    {transit.departureTime && transit.arrivalTime && (
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', fontWeight: 500 }}>
-                        Time: {transit.departureTime} → {transit.arrivalTime} ({transit.durationMinutes} mins)
-                      </div>
-                    )}
-                    {transit.originStation && transit.destinationStation && (
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        Route: {transit.originStation} to {transit.destinationStation}
-                      </div>
-                    )}
-                  </div>
-                );
+              {/* Transit Card (detailed connection legs between activities) */}
+              {(() => {
+                const transitIdx = activeDay.dayNumber === 1 ? actIdx + 1 : actIdx;
+                const transit = activeDay.transits && activeDay.transits[transitIdx];
+                if (transit) {
+                  return renderTransitCard(transit, `Leg ${actIdx + 1}`);
+                }
+                return null;
               })()}
             </div>
           );
