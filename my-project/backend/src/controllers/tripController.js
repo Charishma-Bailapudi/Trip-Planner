@@ -44,7 +44,7 @@ const createTrip = async (req, res, next) => {
       // Prepend initial transit from sourcePlace to Day 1 first activity
       if (day.dayNumber === 1 && sourcePlace && day.activities && day.activities.length > 0) {
         try {
-          const startOptionsObj = getAllTransportOptions(
+          const startOptionsObj = await getAllTransportOptions(
             sourcePlace,
             day.activities[0].location.name,
             transportPreferences,
@@ -111,7 +111,7 @@ const createTrip = async (req, res, next) => {
             const arrMinVal = arrMins % 60;
             const arrTime = `${arrHour.toString().padStart(2, '0')}:${arrMinVal.toString().padStart(2, '0')} ${arrHour >= 12 ? 'PM' : 'AM'}`;
 
-            const legOptionsObj = getAllTransportOptions(
+            const legOptionsObj = await getAllTransportOptions(
               act1.location.name,
               act2.location.name,
               transportPreferences,
@@ -155,7 +155,7 @@ const createTrip = async (req, res, next) => {
               selectedOptionIndex: 0
             });
           } catch (err) {
-            const fallbackOptionsObj = getAllTransportOptions(
+            const fallbackOptionsObj = await getAllTransportOptions(
               act1.location.name,
               act2.location.name,
               transportPreferences,

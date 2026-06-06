@@ -77,216 +77,227 @@ const getTransportOptions = async (origin, destination, budgetMode) => {
   }
 };
 
-const citiesHubs = {
-  anakapalle: {
-    airport: {
-      name: 'Visakhapatnam Airport (VTZ)',
-      distanceKm: 35,
-      transferInstruction: 'Note: Anakapalle does not have an airport. Please take a bus, taxi, or auto to Visakhapatnam Airport (VTZ) (approx 35 km, 50 mins) to board your flight.'
-    },
-    railway: {
-      name: 'Anakapalle Railway Station (AKP)',
-      distanceKm: 0,
-      transferInstruction: ''
-    }
-  },
-  visakhapatnam: {
-    airport: { name: 'Visakhapatnam Airport (VTZ)', distanceKm: 0 },
-    railway: { name: 'Visakhapatnam Railway Junction (VSKP)', distanceKm: 0 }
-  },
-  hyderabad: {
-    airport: { name: 'Rajiv Gandhi International Airport (HYD)', distanceKm: 0 },
-    railway: { name: 'Secunderabad Railway Station (SC)', distanceKm: 0 }
-  },
-  vijayawada: {
-    airport: { name: 'Vijayawada Airport (VGA)', distanceKm: 0 },
-    railway: { name: 'Vijayawada Railway Junction (BZA)', distanceKm: 0 }
-  },
-  tirupati: {
-    airport: { name: 'Tirupati Airport (TIR)', distanceKm: 0 },
-    railway: { name: 'Tirupati Main Station (TPTY)', distanceKm: 0 }
-  },
-  bengaluru: {
-    airport: { name: 'Kempegowda International Airport (BLR)', distanceKm: 0 },
-    railway: { name: 'KSR Bengaluru City Junction (SBC)', distanceKm: 0 }
-  },
-  chennai: {
-    airport: { name: 'Chennai International Airport (MAA)', distanceKm: 0 },
-    railway: { name: 'Chennai Central Station (MAS)', distanceKm: 0 }
-  },
-  mumbai: {
-    airport: { name: 'Chhatrapati Shivaji Maharaj International Airport (BOM)', distanceKm: 0 },
-    railway: { name: 'Mumbai Chhatrapati Shivaji Maharaj Terminus (CSMT)', distanceKm: 0 }
-  },
-  delhi: {
-    airport: { name: 'Indira Gandhi International Airport (DEL)', distanceKm: 0 },
-    railway: { name: 'New Delhi Railway Station (NDLS)', distanceKm: 0 }
-  }
-};
+const { getCityTransportHubDetails, getAccurateTransportOptionsFromAI } = require('./geminiService');
 
-const getCityHub = (cityName) => {
-  if (!cityName) return null;
-  const key = cityName.toLowerCase().trim();
-  for (const k of Object.keys(citiesHubs)) {
-    if (key.includes(k)) {
-      return { key: k, ...citiesHubs[k] };
+// Flight API: Duffel Client
+const fetchDuffelFlights = async (depIata, arrIata) => {
+  const apiKey = process.env.DUFFEL_API_KEY;
+  if (!apiKey || apiKey === 'YOUR_DUFFEL_API_KEY') return null;
+  try {
+    console.log(`[Duffel API] Fetching flights from ${depIata} to ${arrIata}...`);
+    const res = await axios.post('https://api.duffel.com/air/offer_requests', {
+      data: {
+        slices: [{
+          origin: depIata,
+          destination: arrIata,
+          departure_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 7 days out
+        }],
+        passengers: [{ type: 'adult' }],
+        cabin_class: 'economy'
+      }
+    }, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Duffel-Version': 'v1',
+        'Content-Type': 'application/json'
+      }
+    });
+    if (res.data && res.data.data && res.data.data.offers) {
+      return res.data.data.offers.slice(0, 3).map(offer => {
+        const slice = offer.slices[0];
+        const segment = slice.segments[0];
+        return {
+          mode: 'flight',
+          transitNumber: `${segment.marketing_carrier.name} ${segment.marketing_carrier_flight_number}`,
+          departureTime: new Date(segment.departing_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          arrivalTime: new Date(segment.arriving_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          durationMinutes: Math.round((new Date(segment.arriving_at) - new Date(segment.departing_at)) / 60000),
+          estimatedCost: parseFloat(offer.total_amount),
+          originStation: segment.origin.name || depIata,
+          destinationStation: segment.destination.name || arrIata
+        };
+      });
     }
+  } catch (error) {
+    console.error('[Transport Service] Duffel API call failed:', error.response?.data || error.message);
   }
   return null;
 };
 
-const getAllTransportOptions = (originName, destinationName, preferences, budgetMode, currency) => {
+// Flight API: Aviationstack Client
+const fetchAviationstackFlights = async (depIata, arrIata) => {
+  const apiKey = process.env.AVIATIONSTACK_API_KEY;
+  if (!apiKey || apiKey === 'YOUR_AVIATIONSTACK_API_KEY') return null;
+  try {
+    console.log(`[Aviationstack API] Fetching flights from ${depIata} to ${arrIata}...`);
+    const res = await axios.get('http://api.aviationstack.com/v1/flights', {
+      params: {
+        access_key: apiKey,
+        dep_iata: depIata,
+        arr_iata: arrIata,
+        limit: 3
+      }
+    });
+    if (res.data && res.data.data && res.data.data.length > 0) {
+      return res.data.data.map(f => ({
+        mode: 'flight',
+        transitNumber: `${f.airline?.name || 'IndiGo'} ${f.flight?.iata || f.flight?.number || '6E-100'}`,
+        departureTime: f.departure?.estimated ? new Date(f.departure.estimated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '11:00 AM',
+        arrivalTime: f.arrival?.estimated ? new Date(f.arrival.estimated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '12:30 PM',
+        durationMinutes: parseInt(f.flight?.duration) || 90,
+        estimatedCost: 160, // Fallback cost as free Aviationstack tiers do not provide ticket prices
+        originStation: f.departure?.airport || depIata,
+        destinationStation: f.arrival?.airport || arrIata
+      }));
+    }
+  } catch (error) {
+    console.error('[Transport Service] Aviationstack API call failed:', error.response?.data || error.message);
+  }
+  return null;
+};
+
+// Rail API: FlightsLogic Rail Client
+const fetchFlightsLogicTrains = async (depCode, arrCode) => {
+  const apiKey = process.env.FLIGHTSLOGIC_API_KEY;
+  if (!apiKey || apiKey === 'YOUR_FLIGHTSLOGIC_API_KEY') return null;
+  try {
+    console.log(`[FlightsLogic Rail API] Searching trains from ${depCode} to ${arrCode}...`);
+    const res = await axios.get('https://api.flightslogic.com/v1/rail/search', {
+      params: {
+        access_key: apiKey,
+        origin: depCode,
+        destination: arrCode
+      }
+    });
+    if (res.data && res.data.trains) {
+      return res.data.trains.slice(0, 3).map(t => ({
+        mode: 'train',
+        transitNumber: t.trainNumber || t.name,
+        departureTime: t.departureTime || '09:00 AM',
+        arrivalTime: t.arrivalTime || '05:00 PM',
+        durationMinutes: parseInt(t.durationMinutes) || 480,
+        estimatedCost: parseFloat(t.price) || 25,
+        originStation: t.originStation || depCode,
+        destinationStation: t.destinationStation || arrCode
+      }));
+    }
+  } catch (error) {
+    console.error('[Transport Service] FlightsLogic Rail API call failed:', error.response?.data || error.message);
+  }
+  return null;
+};
+
+// Rail API: BOS Train Client
+const fetchBosTrains = async (depCode, arrCode) => {
+  const apiKey = process.env.BOS_TRAIN_API_KEY;
+  if (!apiKey || apiKey === 'YOUR_BOS_TRAIN_API_KEY') return null;
+  try {
+    console.log(`[BOS Train API] Searching trains from ${depCode} to ${arrCode}...`);
+    const res = await axios.post('https://api.bostrains.com/v2/search', {
+      originStationCode: depCode,
+      destinationStationCode: arrCode
+    }, {
+      headers: { 'X-API-KEY': apiKey }
+    });
+    if (res.data && res.data.routes) {
+      return res.data.routes.slice(0, 3).map(r => ({
+        mode: 'train',
+        transitNumber: r.train_no || r.train_name || 'Exp 101',
+        departureTime: r.dep_time || '10:00 PM',
+        arrivalTime: r.arr_time || '06:00 AM',
+        durationMinutes: parseInt(r.duration) || 480,
+        estimatedCost: parseFloat(r.fare) || 30,
+        originStation: r.origin_station_name || depCode,
+        destinationStation: r.dest_station_name || arrCode
+      }));
+    }
+  } catch (error) {
+    console.error('[Transport Service] BOS Train API call failed:', error.response?.data || error.message);
+  }
+  return null;
+};
+
+const getAllTransportOptions = async (originName, destinationName, preferences, budgetMode, currency) => {
   const rate = currency === 'INR' ? 80 : currency === 'EUR' ? 0.9 : currency === 'GBP' ? 0.8 : 1;
 
-  const originHub = getCityHub(originName);
-  const destHub = getCityHub(destinationName);
-
-  // Setup flight airports & instructions
-  const flightOrigin = originHub?.airport?.name || `${originName} Airport`;
-  const flightDest = destHub?.airport?.name || `${destinationName} Airport`;
-  let flightInstructions = '';
-  if (originHub?.airport?.transferInstruction) {
-    flightInstructions += originHub.airport.transferInstruction;
-  }
-  if (destHub?.airport?.transferInstruction) {
-    flightInstructions += (flightInstructions ? ' ' : '') + destHub.airport.transferInstruction;
+  // 1. Determine whether airport/railway station is there at source/destination using Gemini or fallbacks
+  let originHub, destHub;
+  try {
+    originHub = await getCityTransportHubDetails(originName);
+    destHub = await getCityTransportHubDetails(destinationName);
+  } catch (err) {
+    console.error('[Transport Service] Dynamic hub retrieval failed, using local database:', err.message);
+    const { getLocalCityHubDetails } = require('./geminiService');
+    originHub = getLocalCityHubDetails(originName);
+    destHub = getLocalCityHubDetails(destinationName);
   }
 
-  // Setup railway stations & instructions
-  const trainOrigin = originHub?.railway?.name || `${originName} Railway Station`;
-  const trainDest = destHub?.railway?.name || `${destinationName} Railway Station`;
-  let trainInstructions = '';
-  if (originHub?.railway?.transferInstruction) {
-    trainInstructions += originHub.railway.transferInstruction;
-  }
-  if (destHub?.railway?.transferInstruction) {
-    trainInstructions += (trainInstructions ? ' ' : '') + destHub.railway.transferInstruction;
-  }
+  // 2. Set up flight stations & instructions (suggest auto/bus/taxi if not local)
+  const flightOrigin = originHub.hasAirport 
+    ? `${originHub.airportName} (${originHub.airportCode})` 
+    : `${originHub.nearestAirportName} (${originHub.nearestAirportCode})`;
+    
+  const flightDest = destHub.hasAirport 
+    ? `${destHub.airportName} (${destHub.airportCode})` 
+    : `${destHub.nearestAirportName} (${destHub.nearestAirportCode})`;
 
-  // Generate Flight Options
-  const flightOptions = [
-    {
-      mode: 'flight',
-      transitNumber: 'Air India AI-501',
-      departureTime: '06:15 AM',
-      arrivalTime: '07:30 AM',
-      durationMinutes: 75,
-      estimatedCost: Math.round(140 * rate),
-      originStation: flightOrigin,
-      destinationStation: flightDest
-    },
-    {
-      mode: 'flight',
-      transitNumber: 'IndiGo 6E-243',
-      departureTime: '01:45 PM',
-      arrivalTime: '03:00 PM',
-      durationMinutes: 75,
-      estimatedCost: Math.round(120 * rate),
-      originStation: flightOrigin,
-      destinationStation: flightDest
-    },
-    {
-      mode: 'flight',
-      transitNumber: 'Vistara UK-882',
-      departureTime: '07:30 PM',
-      arrivalTime: '08:45 PM',
-      durationMinutes: 75,
-      estimatedCost: Math.round(160 * rate),
-      originStation: flightOrigin,
-      destinationStation: flightDest
+  const flightInstructions = !originHub.hasAirport ? originHub.airportTransferInstructions : '';
+
+  // 3. Set up train stations & instructions (suggest auto/bus if not local)
+  const trainOrigin = originHub.hasRailwayStation 
+    ? `${originHub.railwayStationName} (${originHub.railwayStationCode})` 
+    : `${originHub.nearestRailwayStationName} (${originHub.nearestRailwayStationCode})`;
+    
+  const trainDest = destHub.hasRailwayStation 
+    ? `${destHub.railwayStationName} (${destHub.railwayStationCode})` 
+    : `${destHub.nearestRailwayStationName} (${destHub.nearestRailwayStationCode})`;
+
+  const trainInstructions = !originHub.hasRailwayStation ? originHub.railwayTransferInstructions : '';
+
+  // 4. Fetch Flight Options (Duffel -> Aviationstack)
+  let flightOptions = null;
+  const originAirportCode = originHub.airportCode || originHub.nearestAirportCode;
+  const destAirportCode = destHub.airportCode || destHub.nearestAirportCode;
+
+  if (originAirportCode && destAirportCode) {
+    flightOptions = await fetchDuffelFlights(originAirportCode, destAirportCode);
+    if (!flightOptions) {
+      flightOptions = await fetchAviationstackFlights(originAirportCode, destAirportCode);
     }
-  ];
+  }
 
-  // Generate Train Options
-  const isAnakapalleToHyd = (originName.toLowerCase().includes('anakapalle') && destinationName.toLowerCase().includes('hyderabad'));
+  // 5. Fetch Train Options (FlightsLogic -> BOS Train)
+  let trainOptions = null;
+  const originStationCode = originHub.railwayStationCode || originHub.nearestRailwayStationCode;
+  const destStationCode = destHub.railwayStationCode || destHub.nearestRailwayStationCode;
+
+  if (originStationCode && destStationCode) {
+    trainOptions = await fetchFlightsLogicTrains(originStationCode, destStationCode);
+    if (!trainOptions) {
+      trainOptions = await fetchBosTrains(originStationCode, destStationCode);
+    }
+  }
+
+  // 6. Fallback to Gemini AI for accurate/real-time schedule generation if API results are not available
+  let aiOptions = null;
+  if (!flightOptions || !trainOptions) {
+    try {
+      aiOptions = await getAccurateTransportOptionsFromAI(originHub, destHub, budgetMode, currency, rate);
+    } catch (err) {
+      console.error('[Transport Service] Gemini accurate transport generation failed, using local static data:', err.message);
+      const { getLocalTransportOptionsFallback } = require('./geminiService');
+      aiOptions = getLocalTransportOptionsFallback(originHub, destHub, rate);
+    }
+  }
+
+  if (!flightOptions) {
+    flightOptions = aiOptions ? aiOptions.flightOptions : [];
+  }
+  if (!trainOptions) {
+    trainOptions = aiOptions ? aiOptions.trainOptions : [];
+  }
   
-  const trainOptions = isAnakapalleToHyd ? [
-    {
-      mode: 'train',
-      transitNumber: 'Godavari Express 12727',
-      departureTime: '05:40 PM',
-      arrivalTime: '06:15 AM',
-      durationMinutes: 755,
-      estimatedCost: Math.round(15 * rate), // ~1200 INR AC-3T
-      originStation: 'Anakapalle (AKP)',
-      destinationStation: 'Secunderabad Jn (SC)'
-    },
-    {
-      mode: 'train',
-      transitNumber: 'Janmabhoomi Express 12805',
-      departureTime: '06:40 AM',
-      arrivalTime: '07:45 PM',
-      durationMinutes: 785,
-      estimatedCost: Math.round(8 * rate), // ~640 INR CC
-      originStation: 'Anakapalle (AKP)',
-      destinationStation: 'Secunderabad Jn (SC)'
-    },
-    {
-      mode: 'train',
-      transitNumber: 'Visakha Express 17015',
-      departureTime: '04:30 PM',
-      arrivalTime: '07:30 AM',
-      durationMinutes: 900,
-      estimatedCost: Math.round(13 * rate), // ~1040 INR AC-3T
-      originStation: 'Anakapalle (AKP)',
-      destinationStation: 'Secunderabad Jn (SC)'
-    }
-  ] : [
-    {
-      mode: 'train',
-      transitNumber: 'Express Train TR-8802',
-      departureTime: '08:00 AM',
-      arrivalTime: '01:30 PM',
-      durationMinutes: 330,
-      estimatedCost: Math.round(30 * rate),
-      originStation: trainOrigin,
-      destinationStation: trainDest
-    },
-    {
-      mode: 'train',
-      transitNumber: 'Shatabdi Express TR-1201',
-      departureTime: '02:00 PM',
-      arrivalTime: '07:45 PM',
-      durationMinutes: 345,
-      estimatedCost: Math.round(45 * rate),
-      originStation: trainOrigin,
-      destinationStation: trainDest
-    },
-    {
-      mode: 'train',
-      transitNumber: 'Superfast Train TR-2022',
-      departureTime: '09:30 PM',
-      arrivalTime: '03:15 AM',
-      durationMinutes: 345,
-      estimatedCost: Math.round(65 * rate),
-      originStation: trainOrigin,
-      destinationStation: trainDest
-    }
-  ];
-
-  // Generate Bus Options
-  const busOptions = [
-    {
-      mode: 'bus',
-      transitNumber: 'APSRTC Volvo Multi-Axle',
-      departureTime: '08:00 PM',
-      arrivalTime: '06:00 AM',
-      durationMinutes: 600,
-      estimatedCost: Math.round(12 * rate), // ~960 INR
-      originStation: `${originName} Bus Stand`,
-      destinationStation: `${destinationName} Bus Stand`
-    },
-    {
-      mode: 'bus',
-      transitNumber: 'Orange Travels AC Sleeper',
-      departureTime: '09:30 PM',
-      arrivalTime: '07:15 AM',
-      durationMinutes: 585,
-      estimatedCost: Math.round(18 * rate), // ~1440 INR
-      originStation: `${originName} Bypass`,
-      destinationStation: `${destinationName} Central Bus Stand`
-    }
-  ];
+  const busOptions = aiOptions ? aiOptions.busOptions : [];
 
   // Scale estimates based on budget mode
   if (budgetMode === 'tier') {
@@ -310,3 +321,4 @@ module.exports = {
   getTransportOptions,
   getAllTransportOptions
 };
+
