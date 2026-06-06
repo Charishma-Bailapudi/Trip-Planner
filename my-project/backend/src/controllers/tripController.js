@@ -3,6 +3,52 @@ const { generateItinerary } = require('../services/geminiService');
 const { getWeatherData } = require('../services/weatherService');
 const { getTransportOptions, getAllTransportOptions } = require('../services/transportService');
 
+// Helper: Process and resolve transport options for a transit segment
+const processTransitSegment = async (origin, destination, preferredMode, transportPreferences, budget, rate) => {
+  const optionsObj = await getAllTransportOptions(
+    origin,
+    destination,
+    transportPreferences,
+    budget.mode,
+    budget.currency
+  );
+  
+  const defaultOptions = preferredMode === 'flight' ? optionsObj.flightOptions : optionsObj.trainOptions;
+  const defaultOpt = defaultOptions[0] || optionsObj.busOptions[0] || {
+    mode: preferredMode,
+    transitNumber: 'Direct Connection',
+    departureTime: '09:00 AM',
+    arrivalTime: '11:00 AM',
+    durationMinutes: 120,
+    estimatedCost: Math.round(10 * rate),
+    originStation: `${origin} Terminal`,
+    destinationStation: `${destination} Terminal`
+  };
+
+  return {
+    origin,
+    destination,
+    mode: defaultOpt.mode,
+    durationMinutes: defaultOpt.durationMinutes,
+    estimatedCost: defaultOpt.estimatedCost,
+    transitNumber: defaultOpt.transitNumber,
+    departureTime: defaultOpt.departureTime,
+    arrivalTime: defaultOpt.arrivalTime,
+    originStation: defaultOpt.originStation,
+    destinationStation: defaultOpt.destinationStation,
+    
+    trainOptions: optionsObj.trainOptions,
+    flightOptions: optionsObj.flightOptions,
+    busOptions: optionsObj.busOptions,
+    flightInstructions: optionsObj.flightInstructions,
+    trainInstructions: optionsObj.trainInstructions,
+    busInstructions: optionsObj.busInstructions,
+    
+    selectedMode: defaultOpt.mode,
+    selectedOptionIndex: 0
+  };
+};
+
 // Create a new trip with AI itinerary
 const createTrip = async (req, res, next) => {
   try {
@@ -44,163 +90,68 @@ const createTrip = async (req, res, next) => {
       // Prepend initial transit from sourcePlace to Day 1 first activity
       if (day.dayNumber === 1 && sourcePlace && day.activities && day.activities.length > 0) {
         try {
-          const startOptionsObj = await getAllTransportOptions(
+          const processed = await processTransitSegment(
             sourcePlace,
             day.activities[0].location.name,
+            transportPreferences[0] || 'train',
             transportPreferences,
-            budget.mode,
-            budget.currency
+            budget,
+            rate
           );
-          
-          const preferredMode = transportPreferences[0] || 'train';
-          const defaultOptions = preferredMode === 'flight' ? startOptionsObj.flightOptions : startOptionsObj.trainOptions;
-          const defaultOpt = defaultOptions[0] || startOptionsObj.busOptions[0] || {
-            mode: preferredMode,
-            transitNumber: 'Direct Connection',
-            departureTime: '09:00 AM',
-            arrivalTime: '11:00 AM',
-            durationMinutes: 120,
-            estimatedCost: Math.round(10 * rate),
-            originStation: `${sourcePlace} Terminal`,
-            destinationStation: `${day.activities[0].location.name} Station`
-          };
-
-          transits.push({
-            origin: sourcePlace,
-            destination: day.activities[0].location.name,
-            mode: defaultOpt.mode,
-            durationMinutes: defaultOpt.durationMinutes,
-            estimatedCost: defaultOpt.estimatedCost,
-            transitNumber: defaultOpt.transitNumber,
-            departureTime: defaultOpt.departureTime,
-            arrivalTime: defaultOpt.arrivalTime,
-            originStation: defaultOpt.originStation,
-            destinationStation: defaultOpt.destinationStation,
-            
-            trainOptions: startOptionsObj.trainOptions,
-            flightOptions: startOptionsObj.flightOptions,
-            busOptions: startOptionsObj.busOptions,
-            flightInstructions: startOptionsObj.flightInstructions,
-            trainInstructions: startOptionsObj.trainInstructions,
-            busInstructions: startOptionsObj.busInstructions,
-            
-            selectedMode: defaultOpt.mode,
-            selectedOptionIndex: 0
-          });
+          transits.push(processed);
         } catch (err) {
           console.error('[Trip Controller] Error generating starting transit:', err.message);
         }
       }
 
-      if (day.activities && day.activities.length > 1) {
+      // Process raw transits from Gemini itinerary if they exist, making sure they are resolved via the API
+      if (day.transits && day.transits.length > 0) {
+        for (const rawTransit of day.transits) {
+          // Skip if duplicate of starting transit
+          if (day.dayNumber === 1 && rawTransit.origin === sourcePlace && day.activities && day.activities.length > 0 && rawTransit.destination === day.activities[0].location.name) {
+            continue;
+          }
+          try {
+            const processed = await processTransitSegment(
+              rawTransit.origin,
+              rawTransit.destination,
+              rawTransit.mode || transportPreferences[0] || 'train',
+              transportPreferences,
+              budget,
+              rate
+            );
+            
+            // If Gemini/Mock had custom schedules or durations, preserve them
+            if (rawTransit.departureTime) processed.departureTime = rawTransit.departureTime;
+            if (rawTransit.arrivalTime) processed.arrivalTime = rawTransit.arrivalTime;
+            if (rawTransit.transitNumber) processed.transitNumber = rawTransit.transitNumber;
+            if (rawTransit.durationMinutes) processed.durationMinutes = rawTransit.durationMinutes;
+
+            transits.push(processed);
+          } catch (err) {
+            console.error('[Trip Controller] Error processing raw transit segment:', err.message);
+            transits.push(rawTransit);
+          }
+        }
+      } else if (day.activities && day.activities.length > 1) {
+        // Fallback: generate sequential legs between activities on the same day if no transits were provided
         for (let idx = 0; idx < day.activities.length - 1; idx++) {
           const act1 = day.activities[idx];
           const act2 = day.activities[idx + 1];
           try {
-            const transitOpt = await getTransportOptions(
-              act1.location,
-              act2.location,
-              budget.mode
-            );
-            
-            // Format mock schedules
-            const depHour = 9 + idx * 3;
-            const depTime = `${depHour.toString().padStart(2, '0')}:00 ${depHour >= 12 ? 'PM' : 'AM'}`;
-            const arrMins = transitOpt.durationMinutes;
-            const arrHour = depHour + Math.floor((arrMins) / 60);
-            const arrMinVal = arrMins % 60;
-            const arrTime = `${arrHour.toString().padStart(2, '0')}:${arrMinVal.toString().padStart(2, '0')} ${arrHour >= 12 ? 'PM' : 'AM'}`;
-
-            const legOptionsObj = await getAllTransportOptions(
+            const processed = await processTransitSegment(
               act1.location.name,
               act2.location.name,
+              transportPreferences[0] || 'train',
               transportPreferences,
-              budget.mode,
-              budget.currency
+              budget,
+              rate
             );
-            
-            const preferredMode = transportPreferences[0] || 'train';
-            const defaultOptions = preferredMode === 'flight' ? legOptionsObj.flightOptions : legOptionsObj.trainOptions;
-            const defaultOpt = defaultOptions[0] || legOptionsObj.busOptions[0] || {
-              mode: preferredMode,
-              transitNumber: 'Local Transit',
-              departureTime: depTime,
-              arrivalTime: arrTime,
-              durationMinutes: transitOpt.durationMinutes,
-              estimatedCost: Math.round(transitOpt.estimatedCost * rate),
-              originStation: `${act1.location.name} Terminal`,
-              destinationStation: `${act2.location.name} Terminal`
-            };
-
-            transits.push({
-              origin: act1.location.name,
-              destination: act2.location.name,
-              mode: defaultOpt.mode,
-              durationMinutes: defaultOpt.durationMinutes,
-              estimatedCost: defaultOpt.estimatedCost,
-              transitNumber: defaultOpt.transitNumber,
-              departureTime: defaultOpt.departureTime,
-              arrivalTime: defaultOpt.arrivalTime,
-              originStation: defaultOpt.originStation,
-              destinationStation: defaultOpt.destinationStation,
-              
-              trainOptions: legOptionsObj.trainOptions,
-              flightOptions: legOptionsObj.flightOptions,
-              busOptions: legOptionsObj.busOptions,
-              flightInstructions: legOptionsObj.flightInstructions,
-              trainInstructions: legOptionsObj.trainInstructions,
-              busInstructions: legOptionsObj.busInstructions,
-              
-              selectedMode: defaultOpt.mode,
-              selectedOptionIndex: 0
-            });
+            transits.push(processed);
           } catch (err) {
-            const fallbackOptionsObj = await getAllTransportOptions(
-              act1.location.name,
-              act2.location.name,
-              transportPreferences,
-              budget.mode,
-              budget.currency
-            );
-            const preferredMode = transportPreferences[0] || 'train';
-            const defaultOptions = preferredMode === 'flight' ? fallbackOptionsObj.flightOptions : fallbackOptionsObj.trainOptions;
-            const defaultOpt = defaultOptions[0] || fallbackOptionsObj.busOptions[0] || {
-              mode: preferredMode,
-              transitNumber: 'Local Route',
-              departureTime: '12:00 PM',
-              arrivalTime: '12:20 PM',
-              durationMinutes: 20,
-              estimatedCost: Math.round(10 * rate),
-              originStation: `${act1.location.name} Terminal`,
-              destinationStation: `${act2.location.name} Terminal`
-            };
-            transits.push({
-              origin: act1.location.name,
-              destination: act2.location.name,
-              mode: defaultOpt.mode,
-              durationMinutes: defaultOpt.durationMinutes,
-              estimatedCost: defaultOpt.estimatedCost,
-              transitNumber: defaultOpt.transitNumber,
-              departureTime: defaultOpt.departureTime,
-              arrivalTime: defaultOpt.arrivalTime,
-              originStation: defaultOpt.originStation,
-              destinationStation: defaultOpt.destinationStation,
-              
-              trainOptions: fallbackOptionsObj.trainOptions,
-              flightOptions: fallbackOptionsObj.flightOptions,
-              busOptions: fallbackOptionsObj.busOptions,
-              flightInstructions: fallbackOptionsObj.flightInstructions,
-              trainInstructions: fallbackOptionsObj.trainInstructions,
-              busInstructions: fallbackOptionsObj.busInstructions,
-              
-              selectedMode: defaultOpt.mode,
-              selectedOptionIndex: 0
-            });
+            console.error('[Trip Controller] Error generating activity-to-activity transit:', err.message);
           }
         }
-      } else {
-        // Fallback or copy existing transits if only 1 activity
-        transits.push(...(day.transits || []));
       }
 
       itinerary.push({
