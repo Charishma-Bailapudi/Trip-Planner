@@ -425,6 +425,22 @@ function getLocalCityHubDetails(cityName) {
       railwayDistanceKm: 0,
       railwayTransferInstructions: 'Guntur is served directly by Guntur Railway Station (GNT).'
     },
+    gajuwaka: {
+      hasAirport: false,
+      airportName: null,
+      airportCode: null,
+      nearestAirportName: 'Visakhapatnam Airport',
+      nearestAirportCode: 'VTZ',
+      airportDistanceKm: 12,
+      airportTransferInstructions: 'Note: Gajuwaka does not have a commercial airport. Please take an auto or taxi to Visakhapatnam Airport (VTZ) (approx 12 km, 25 mins) to board your flight.',
+      hasRailwayStation: false,
+      railwayStationName: null,
+      railwayStationCode: null,
+      nearestRailwayStationName: 'Duvvada Railway Station',
+      nearestRailwayStationCode: 'DVD',
+      railwayDistanceKm: 5,
+      railwayTransferInstructions: 'Note: Gajuwaka does not have a major railway station. Please take an auto (approx 5 km, 15 mins) to Duvvada Railway Station (DVD) or Visakhapatnam Junction (VSKP) to board your train.'
+    },
     visakhapatnam: {
       hasAirport: true,
       airportName: 'Visakhapatnam Airport',
@@ -590,38 +606,40 @@ function getLocalTransportOptionsFallback(originHub, destHub, rate) {
   const originStationName = originHub.railwayStationName || originHub.nearestRailwayStationName || 'Origin Station';
   const destStationName = destHub.railwayStationName || destHub.nearestRailwayStationName || 'Destination Station';
 
-  const isAnakapalleToHyd = (originStation.includes('AKP') && destStation.includes('SC'));
+  const isVisakhapatnamOrDuvvadaToHyd = 
+    (originStation.includes('VSKP') || originStation.includes('DVD') || originStation.includes('AKP')) && 
+    (destStation.includes('SC') || destStation.includes('HYD'));
 
-  const trainOptions = isAnakapalleToHyd ? [
+  const trainOptions = isVisakhapatnamOrDuvvadaToHyd ? [
     {
       mode: 'train',
       transitNumber: 'Godavari Express 12727',
-      departureTime: '05:40 PM',
+      departureTime: originStation.includes('AKP') ? '05:40 PM' : originStation.includes('DVD') ? '05:53 PM' : '05:20 PM',
       arrivalTime: '06:15 AM',
-      durationMinutes: 755,
+      durationMinutes: originStation.includes('AKP') ? 755 : originStation.includes('DVD') ? 742 : 775,
       estimatedCost: Math.round(15 * rate),
-      originStation: 'Anakapalle (AKP)',
-      destinationStation: 'Secunderabad Jn (SC)'
+      originStation: `${originStationName} (${originStation})`,
+      destinationStation: `${destStationName} (${destStation})`
     },
     {
       mode: 'train',
       transitNumber: 'Janmabhoomi Express 12805',
-      departureTime: '06:40 AM',
+      departureTime: originStation.includes('AKP') ? '06:40 AM' : originStation.includes('DVD') ? '06:49 AM' : '06:20 AM',
       arrivalTime: '07:45 PM',
-      durationMinutes: 785,
+      durationMinutes: originStation.includes('AKP') ? 785 : originStation.includes('DVD') ? 776 : 805,
       estimatedCost: Math.round(8 * rate),
-      originStation: 'Anakapalle (AKP)',
-      destinationStation: 'Secunderabad Jn (SC)'
+      originStation: `${originStationName} (${originStation})`,
+      destinationStation: `${destStationName} (${destStation})`
     },
     {
       mode: 'train',
       transitNumber: 'Visakha Express 17015',
-      departureTime: '04:30 PM',
+      departureTime: originStation.includes('AKP') ? '04:30 PM' : originStation.includes('DVD') ? '04:43 PM' : '04:10 PM',
       arrivalTime: '07:30 AM',
-      durationMinutes: 900,
+      durationMinutes: originStation.includes('AKP') ? 900 : originStation.includes('DVD') ? 887 : 920,
       estimatedCost: Math.round(13 * rate),
-      originStation: 'Anakapalle (AKP)',
-      destinationStation: 'Secunderabad Jn (SC)'
+      originStation: `${originStationName} (${originStation})`,
+      destinationStation: `${destStationName} (${destStation})`
     }
   ] : [
     {
