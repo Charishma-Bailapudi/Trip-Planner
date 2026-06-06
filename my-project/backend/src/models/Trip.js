@@ -24,6 +24,17 @@ const ActivitySchema = new mongoose.Schema({
   }
 });
 
+const TransitOptionSchema = new mongoose.Schema({
+  mode: { type: String, required: true },
+  transitNumber: { type: String, required: true },
+  departureTime: { type: String, required: true },
+  arrivalTime: { type: String, required: true },
+  durationMinutes: { type: Number, required: true },
+  estimatedCost: { type: Number, required: true },
+  originStation: { type: String, required: true },
+  destinationStation: { type: String, required: true }
+});
+
 // Schema for transit legs between destinations or points of interest
 const TransitSegmentSchema = new mongoose.Schema({
   origin: { type: String, required: true },
@@ -36,16 +47,16 @@ const TransitSegmentSchema = new mongoose.Schema({
   arrivalTime: { type: String },        // e.g. "11:45 AM"
   originStation: { type: String },      // e.g. "Paris Gare de Lyon"
   destinationStation: { type: String },  // e.g. "Lyon Part Dieu"
-  options: [{
-    mode: { type: String },
-    transitNumber: { type: String },
-    departureTime: { type: String },
-    arrivalTime: { type: String },
-    durationMinutes: { type: Number },
-    estimatedCost: { type: Number },
-    originStation: { type: String },
-    destinationStation: { type: String }
-  }],
+  
+  trainOptions: [TransitOptionSchema],
+  flightOptions: [TransitOptionSchema],
+  busOptions: [TransitOptionSchema],
+  
+  flightInstructions: { type: String },
+  trainInstructions: { type: String },
+  busInstructions: { type: String },
+  
+  selectedMode: { type: String, default: 'train' },
   selectedOptionIndex: { type: Number, default: 0 }
 });
 

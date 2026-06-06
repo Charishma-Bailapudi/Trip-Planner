@@ -40,70 +40,166 @@ const ItineraryDisplay = ({ itinerary, onActivityClick, activeActivityId, select
       <div style={{ 
         display: 'flex', 
         flexDirection: 'column',
-        gap: '0.4rem', 
+        gap: '0.6rem', 
         margin: '0.5rem 1.5rem', 
-        padding: '0.8rem 1.2rem',
+        padding: '1.2rem',
         borderLeft: '2px dashed var(--primary-glow)',
         background: 'var(--bg-secondary)',
         borderRadius: '8px',
         fontSize: '0.85rem',
         color: 'var(--text-secondary)'
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        {/* Active connection header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '0.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: 'var(--secondary)', fontWeight: 600 }}>
             <Navigation size={14} style={{ transform: 'rotate(45deg)' }} />
-            <span style={{ textTransform: 'capitalize' }}>
-              {transit.transitNumber || `${transit.mode} connection`}
+            <span>
+              Active connection: <strong style={{ color: 'var(--text-primary)', textTransform: 'uppercase' }}>{transit.mode}</strong> ({transit.transitNumber || 'Direct'})
             </span>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
               ({label})
             </span>
           </div>
-          {transit.estimatedCost > 0 && (
-            <span style={{ color: 'var(--success)', fontSize: '0.85rem', fontWeight: 600 }}>
+          <div style={{ textAlign: 'right' }}>
+            <span style={{ color: 'var(--success)', fontSize: '0.9rem', fontWeight: 700, display: 'block' }}>
               {getCurrencySymbol(currency)}{transit.estimatedCost}
             </span>
-          )}
-        </div>
-        
-        {transit.departureTime && transit.arrivalTime && (
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', fontWeight: 500 }}>
-            Time: {transit.departureTime} → {transit.arrivalTime} ({transit.durationMinutes} mins)
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              {transit.durationMinutes} mins
+            </span>
           </div>
-        )}
-        
-        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-          Route: <strong>{transit.origin}</strong> ({transit.originStation || 'Start'}) to <strong>{transit.destination}</strong> ({transit.destinationStation || 'End'})
         </div>
 
-        {/* Alternative Options Selection Dropdown */}
-        {transit.options && transit.options.length > 0 && (
-          <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-            <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-              Alternate Transit Options:
-            </label>
-            <select
-              value={transit.selectedOptionIndex || 0}
-              onChange={(e) => onSelectTransitOption && onSelectTransitOption(transit._id, Number(e.target.value))}
-              style={{
-                padding: '0.3rem 0.6rem',
-                fontSize: '0.8rem',
-                borderRadius: '6px',
-                background: 'var(--bg-tertiary)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                color: 'var(--text-primary)',
-                cursor: 'pointer',
-                outline: 'none'
-              }}
-            >
-              {transit.options.map((opt, idx) => (
-                <option key={idx} value={idx}>
-                  {opt.mode.toUpperCase()} Option {idx + 1}: {opt.transitNumber} ({opt.departureTime} - {opt.arrivalTime}) — {getCurrencySymbol(currency)}{opt.estimatedCost}
-                </option>
-              ))}
-            </select>
+        {/* Current schedule info */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', fontSize: '0.8rem', color: 'var(--text-primary)' }}>
+          <div>
+            Route: <strong>{transit.origin}</strong> ({transit.originStation || 'Start'}) ➔ <strong>{transit.destination}</strong> ({transit.destinationStation || 'End'})
           </div>
-        )}
+          {transit.departureTime && transit.arrivalTime && (
+            <div>
+              Schedule: <strong style={{ color: 'var(--secondary)' }}>{transit.departureTime}</strong> – <strong style={{ color: 'var(--secondary)' }}>{transit.arrivalTime}</strong>
+            </div>
+          )}
+        </div>
+
+        {/* Train & Flight options boxes side-by-side */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
+          {/* Left Box: Train Options */}
+          <div style={{
+            background: 'var(--bg-tertiary)',
+            border: '1px solid rgba(255,255,255,0.05)',
+            borderRadius: '8px',
+            padding: '0.85rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.5rem'
+          }}>
+            <h4 style={{ fontSize: '0.85rem', color: 'var(--secondary)', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.25rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              🚆 Train Options
+            </h4>
+            
+            {transit.trainInstructions && (
+              <div style={{ padding: '0.3rem 0.5rem', background: 'rgba(255,165,0,0.06)', color: '#ffbe76', fontSize: '0.7rem', borderRadius: '4px', lineHeight: '1.3' }}>
+                {transit.trainInstructions}
+              </div>
+            )}
+
+            {(!transit.trainOptions || transit.trainOptions.length === 0) ? (
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>No trains configured.</span>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                {transit.trainOptions.map((opt, idx) => {
+                  const isActive = transit.selectedMode === 'train' && transit.selectedOptionIndex === idx;
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => onSelectTransitOption && onSelectTransitOption(transit._id, 'train', idx)}
+                      style={{
+                        padding: '0.4rem 0.6rem',
+                        borderRadius: '6px',
+                        background: isActive ? 'rgba(57, 114, 255, 0.12)' : 'rgba(255,255,255,0.01)',
+                        border: isActive ? '1px solid var(--primary)' : '1px solid rgba(255,255,255,0.02)',
+                        cursor: 'pointer',
+                        fontSize: '0.75rem',
+                        transition: 'var(--transition-smooth)'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
+                        <span style={{ color: isActive ? 'var(--primary)' : 'var(--text-primary)' }}>{opt.transitNumber}</span>
+                        <span style={{ color: 'var(--success)' }}>{getCurrencySymbol(currency)}{opt.estimatedCost}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.7rem', marginTop: '0.15rem' }}>
+                        <span>{opt.departureTime} – {opt.arrivalTime}</span>
+                        <span>{Math.round(opt.durationMinutes / 60)}h</span>
+                      </div>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+                        {opt.originStation} to {opt.destinationStation}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Right Box: Flight Options */}
+          <div style={{
+            background: 'var(--bg-tertiary)',
+            border: '1px solid rgba(255,255,255,0.05)',
+            borderRadius: '8px',
+            padding: '0.85rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.5rem'
+          }}>
+            <h4 style={{ fontSize: '0.85rem', color: 'var(--secondary)', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.25rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              ✈️ Flight Options
+            </h4>
+            
+            {transit.flightInstructions && (
+              <div style={{ padding: '0.3rem 0.5rem', background: 'rgba(255,165,0,0.06)', color: '#ffbe76', fontSize: '0.7rem', borderRadius: '4px', lineHeight: '1.3' }}>
+                {transit.flightInstructions}
+              </div>
+            )}
+
+            {(!transit.flightOptions || transit.flightOptions.length === 0) ? (
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>No flights configured.</span>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                {transit.flightOptions.map((opt, idx) => {
+                  const isActive = transit.selectedMode === 'flight' && transit.selectedOptionIndex === idx;
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => onSelectTransitOption && onSelectTransitOption(transit._id, 'flight', idx)}
+                      style={{
+                        padding: '0.4rem 0.6rem',
+                        borderRadius: '6px',
+                        background: isActive ? 'rgba(57, 114, 255, 0.12)' : 'rgba(255,255,255,0.01)',
+                        border: isActive ? '1px solid var(--primary)' : '1px solid rgba(255,255,255,0.02)',
+                        cursor: 'pointer',
+                        fontSize: '0.75rem',
+                        transition: 'var(--transition-smooth)'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
+                        <span style={{ color: isActive ? 'var(--primary)' : 'var(--text-primary)' }}>{opt.transitNumber}</span>
+                        <span style={{ color: 'var(--success)' }}>{getCurrencySymbol(currency)}{opt.estimatedCost}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.7rem', marginTop: '0.15rem' }}>
+                        <span>{opt.departureTime} – {opt.arrivalTime}</span>
+                        <span>{opt.durationMinutes}m</span>
+                      </div>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+                        {opt.originStation} to {opt.destinationStation}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     );
   };

@@ -44,30 +44,49 @@ const createTrip = async (req, res, next) => {
       // Prepend initial transit from sourcePlace to Day 1 first activity
       if (day.dayNumber === 1 && sourcePlace && day.activities && day.activities.length > 0) {
         try {
-          const startOptions = getAllTransportOptions(
+          const startOptionsObj = getAllTransportOptions(
             sourcePlace,
             day.activities[0].location.name,
             transportPreferences,
             budget.mode,
             budget.currency
           );
-          if (startOptions.length > 0) {
-            const defaultOpt = startOptions[0];
-            transits.push({
-              origin: sourcePlace,
-              destination: day.activities[0].location.name,
-              mode: defaultOpt.mode,
-              durationMinutes: defaultOpt.durationMinutes,
-              estimatedCost: defaultOpt.estimatedCost,
-              transitNumber: defaultOpt.transitNumber,
-              departureTime: defaultOpt.departureTime,
-              arrivalTime: defaultOpt.arrivalTime,
-              originStation: defaultOpt.originStation,
-              destinationStation: defaultOpt.destinationStation,
-              options: startOptions,
-              selectedOptionIndex: 0
-            });
-          }
+          
+          const preferredMode = transportPreferences[0] || 'train';
+          const defaultOptions = preferredMode === 'flight' ? startOptionsObj.flightOptions : startOptionsObj.trainOptions;
+          const defaultOpt = defaultOptions[0] || startOptionsObj.busOptions[0] || {
+            mode: preferredMode,
+            transitNumber: 'Direct Connection',
+            departureTime: '09:00 AM',
+            arrivalTime: '11:00 AM',
+            durationMinutes: 120,
+            estimatedCost: Math.round(10 * rate),
+            originStation: `${sourcePlace} Terminal`,
+            destinationStation: `${day.activities[0].location.name} Station`
+          };
+
+          transits.push({
+            origin: sourcePlace,
+            destination: day.activities[0].location.name,
+            mode: defaultOpt.mode,
+            durationMinutes: defaultOpt.durationMinutes,
+            estimatedCost: defaultOpt.estimatedCost,
+            transitNumber: defaultOpt.transitNumber,
+            departureTime: defaultOpt.departureTime,
+            arrivalTime: defaultOpt.arrivalTime,
+            originStation: defaultOpt.originStation,
+            destinationStation: defaultOpt.destinationStation,
+            
+            trainOptions: startOptionsObj.trainOptions,
+            flightOptions: startOptionsObj.flightOptions,
+            busOptions: startOptionsObj.busOptions,
+            flightInstructions: startOptionsObj.flightInstructions,
+            trainInstructions: startOptionsObj.trainInstructions,
+            busInstructions: startOptionsObj.busInstructions,
+            
+            selectedMode: defaultOpt.mode,
+            selectedOptionIndex: 0
+          });
         } catch (err) {
           console.error('[Trip Controller] Error generating starting transit:', err.message);
         }
@@ -92,22 +111,25 @@ const createTrip = async (req, res, next) => {
             const arrMinVal = arrMins % 60;
             const arrTime = `${arrHour.toString().padStart(2, '0')}:${arrMinVal.toString().padStart(2, '0')} ${arrHour >= 12 ? 'PM' : 'AM'}`;
 
-            const legOptions = getAllTransportOptions(
+            const legOptionsObj = getAllTransportOptions(
               act1.location.name,
               act2.location.name,
               transportPreferences,
               budget.mode,
               budget.currency
             );
-            const defaultOpt = legOptions[0] || {
-              mode: transitOpt.mode,
-              durationMinutes: transitOpt.durationMinutes,
-              estimatedCost: Math.round(transitOpt.estimatedCost * rate),
-              transitNumber: transitOpt.mode === 'train' ? `Train TR-${100 + idx}` : transitOpt.mode === 'flight' ? `Flight FL-${200 + idx}` : transitOpt.mode === 'bus' ? `Bus B-${10 + idx}` : 'Local Transit',
+            
+            const preferredMode = transportPreferences[0] || 'train';
+            const defaultOptions = preferredMode === 'flight' ? legOptionsObj.flightOptions : legOptionsObj.trainOptions;
+            const defaultOpt = defaultOptions[0] || legOptionsObj.busOptions[0] || {
+              mode: preferredMode,
+              transitNumber: 'Local Transit',
               departureTime: depTime,
               arrivalTime: arrTime,
-              originStation: `${act1.location.name} Station`,
-              destinationStation: `${act2.location.name} Station`
+              durationMinutes: transitOpt.durationMinutes,
+              estimatedCost: Math.round(transitOpt.estimatedCost * rate),
+              originStation: `${act1.location.name} Terminal`,
+              destinationStation: `${act2.location.name} Terminal`
             };
 
             transits.push({
@@ -121,24 +143,34 @@ const createTrip = async (req, res, next) => {
               arrivalTime: defaultOpt.arrivalTime,
               originStation: defaultOpt.originStation,
               destinationStation: defaultOpt.destinationStation,
-              options: legOptions,
+              
+              trainOptions: legOptionsObj.trainOptions,
+              flightOptions: legOptionsObj.flightOptions,
+              busOptions: legOptionsObj.busOptions,
+              flightInstructions: legOptionsObj.flightInstructions,
+              trainInstructions: legOptionsObj.trainInstructions,
+              busInstructions: legOptionsObj.busInstructions,
+              
+              selectedMode: defaultOpt.mode,
               selectedOptionIndex: 0
             });
           } catch (err) {
-            const fallbackOptions = getAllTransportOptions(
+            const fallbackOptionsObj = getAllTransportOptions(
               act1.location.name,
               act2.location.name,
               transportPreferences,
               budget.mode,
               budget.currency
             );
-            const defaultOpt = fallbackOptions[0] || {
-              mode: transportPreferences[0] || 'driving',
-              durationMinutes: 20,
-              estimatedCost: Math.round(10 * rate),
+            const preferredMode = transportPreferences[0] || 'train';
+            const defaultOptions = preferredMode === 'flight' ? fallbackOptionsObj.flightOptions : fallbackOptionsObj.trainOptions;
+            const defaultOpt = defaultOptions[0] || fallbackOptionsObj.busOptions[0] || {
+              mode: preferredMode,
               transitNumber: 'Local Route',
               departureTime: '12:00 PM',
               arrivalTime: '12:20 PM',
+              durationMinutes: 20,
+              estimatedCost: Math.round(10 * rate),
               originStation: `${act1.location.name} Terminal`,
               destinationStation: `${act2.location.name} Terminal`
             };
@@ -153,7 +185,15 @@ const createTrip = async (req, res, next) => {
               arrivalTime: defaultOpt.arrivalTime,
               originStation: defaultOpt.originStation,
               destinationStation: defaultOpt.destinationStation,
-              options: fallbackOptions,
+              
+              trainOptions: fallbackOptionsObj.trainOptions,
+              flightOptions: fallbackOptionsObj.flightOptions,
+              busOptions: fallbackOptionsObj.busOptions,
+              flightInstructions: fallbackOptionsObj.flightInstructions,
+              trainInstructions: fallbackOptionsObj.trainInstructions,
+              busInstructions: fallbackOptionsObj.busInstructions,
+              
+              selectedMode: defaultOpt.mode,
               selectedOptionIndex: 0
             });
           }
@@ -246,11 +286,11 @@ const deleteTrip = async (req, res, next) => {
 const selectTransitOption = async (req, res, next) => {
   try {
     const { id, transitId } = req.params;
-    const { optionIndex } = req.body;
+    const { selectedMode, optionIndex } = req.body;
 
-    if (optionIndex === undefined) {
+    if (!selectedMode || optionIndex === undefined) {
       res.status(400);
-      throw new Error('Please provide optionIndex');
+      throw new Error('Please provide selectedMode and optionIndex');
     }
 
     const trip = await Trip.findById(id);
@@ -268,12 +308,18 @@ const selectTransitOption = async (req, res, next) => {
     for (const day of trip.itinerary) {
       const transit = day.transits.id(transitId);
       if (transit) {
-        if (optionIndex < 0 || optionIndex >= transit.options.length) {
+        let optionsList = [];
+        if (selectedMode === 'train') optionsList = transit.trainOptions;
+        else if (selectedMode === 'flight') optionsList = transit.flightOptions;
+        else if (selectedMode === 'bus') optionsList = transit.busOptions;
+
+        if (optionIndex < 0 || optionIndex >= optionsList.length) {
           res.status(400);
           throw new Error('Invalid option index');
         }
 
-        const selectedOpt = transit.options[optionIndex];
+        const selectedOpt = optionsList[optionIndex];
+        transit.selectedMode = selectedMode;
         transit.selectedOptionIndex = optionIndex;
         transit.mode = selectedOpt.mode;
         transit.durationMinutes = selectedOpt.durationMinutes;

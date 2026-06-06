@@ -105,9 +105,9 @@ export const deleteTrip = async (id) => {
   }
 };
 
-export const selectTransitOption = async (tripId, transitId, optionIndex) => {
+export const selectTransitOption = async (tripId, transitId, selectedMode, optionIndex) => {
   try {
-    const response = await apiClient.put(`/trips/${tripId}/transit/${transitId}/select`, { optionIndex });
+    const response = await apiClient.put(`/trips/${tripId}/transit/${transitId}/select`, { selectedMode, optionIndex });
     return response.data;
   } catch (error) {
     console.error(`[API Client] Error selecting transit option ${optionIndex} for transit ${transitId} in trip ${tripId}:`, error);

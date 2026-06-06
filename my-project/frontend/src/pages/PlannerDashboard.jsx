@@ -150,10 +150,10 @@ const PlannerDashboard = ({ user, onLogout }) => {
     }
   };
 
-  const handleSelectTransitOption = async (transitId, optionIndex) => {
+  const handleSelectTransitOption = async (transitId, selectedMode, optionIndex) => {
     if (!activeTrip) return;
     try {
-      const updatedTrip = await selectTransitOption(activeTrip._id, transitId, optionIndex);
+      const updatedTrip = await selectTransitOption(activeTrip._id, transitId, selectedMode, optionIndex);
       setActiveTrip(updatedTrip);
       await loadTrips();
     } catch (err) {
