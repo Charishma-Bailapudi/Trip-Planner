@@ -60,6 +60,31 @@ const TransitSegmentSchema = new mongoose.Schema({
   selectedOptionIndex: { type: Number, default: 0 }
 });
 
+const HotelSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  rating: { type: String },
+  estimatedCost: { type: Number },
+  description: { type: String },
+  address: { type: String }
+});
+
+const SightseeingSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  recommendedDuration: { type: String },
+  bestTimeToVisit: { type: String },
+  entryFee: { type: Number, default: 0 },
+  description: { type: String }
+});
+
+const RestaurantSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  cuisineType: { type: String, required: true },
+  rating: { type: String },
+  costForTwo: { type: Number },
+  popularDishes: { type: String },
+  description: { type: String }
+});
+
 // Schema for each day in the trip itinerary
 const ItineraryDaySchema = new mongoose.Schema({
   dayNumber: {
@@ -72,6 +97,9 @@ const ItineraryDaySchema = new mongoose.Schema({
   },
   activities: [ActivitySchema],
   transits: [TransitSegmentSchema],
+  hotels: [HotelSchema],
+  sightseeing: [SightseeingSchema],
+  restaurants: [RestaurantSchema],
   weather: {
     tempCelsius: { type: Number },
     condition: { type: String },

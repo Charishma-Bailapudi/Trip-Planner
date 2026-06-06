@@ -49,9 +49,55 @@ const itineraryResponseSchema = {
           },
           required: ['origin', 'destination', 'mode', 'durationMinutes', 'estimatedCost', 'transitNumber', 'departureTime', 'arrivalTime', 'originStation', 'destinationStation']
         }
+      },
+      hotels: {
+        type: 'ARRAY',
+        description: 'Suggested hotels/stays for this day, matching the budget tier and currency',
+        items: {
+          type: 'OBJECT',
+          properties: {
+            name: { type: 'STRING' },
+            rating: { type: 'STRING', description: 'e.g. "4.3/5" or "4.5★"' },
+            estimatedCost: { type: 'NUMBER', description: 'Price per night in the requested currency' },
+            description: { type: 'STRING' },
+            address: { type: 'STRING' }
+          },
+          required: ['name', 'rating', 'estimatedCost', 'description', 'address']
+        }
+      },
+      sightseeing: {
+        type: 'ARRAY',
+        description: 'Suggested popular sightseeing places/attractions to visit on this day',
+        items: {
+          type: 'OBJECT',
+          properties: {
+            name: { type: 'STRING' },
+            recommendedDuration: { type: 'STRING', description: 'e.g. "2 hours" or "Half day"' },
+            bestTimeToVisit: { type: 'STRING', description: 'e.g. "Morning", "Sunset"' },
+            entryFee: { type: 'NUMBER', description: 'Entry fee in the requested currency, 0 if free' },
+            description: { type: 'STRING' }
+          },
+          required: ['name', 'recommendedDuration', 'bestTimeToVisit', 'entryFee', 'description']
+        }
+      },
+      restaurants: {
+        type: 'ARRAY',
+        description: 'Suggested popular restaurants in this city. Provide a variety of cuisine types (e.g. Biryani, South Indian, Veg Only, Multi-Cuisine)',
+        items: {
+          type: 'OBJECT',
+          properties: {
+            name: { type: 'STRING' },
+            cuisineType: { type: 'STRING', description: 'Single main cuisine keyword e.g. "Biryani", "South Indian", "Veg Only", "North Indian", "Street Food"' },
+            rating: { type: 'STRING', description: 'e.g. "4.4★"' },
+            costForTwo: { type: 'NUMBER', description: 'Average cost for two people in the requested currency' },
+            popularDishes: { type: 'STRING', description: 'Comma separated popular items' },
+            description: { type: 'STRING' }
+          },
+          required: ['name', 'cuisineType', 'rating', 'costForTwo', 'popularDishes', 'description']
+        }
       }
     },
-    required: ['dayNumber', 'dateString', 'activities', 'transits']
+    required: ['dayNumber', 'dateString', 'activities', 'transits', 'hotels', 'sightseeing', 'restaurants']
   }
 };
 
@@ -83,12 +129,13 @@ const generateItinerary = async (tripData) => {
     - Budget Preference: Mode is "${tripData.budget.mode}" with values: ${JSON.stringify(tripData.budget)} (Requested Currency is: ${tripData.budget.currency || 'USD'})
     - Transport Preferences: ${JSON.stringify(tripData.transportPreferences)}
     - Trip Layout Structure: "${tripData.tripStructure}" (linear = chronological destination stays, hub_and_spoke = base destination with daily side trips, flex = unstructured optimal ordering)
-
+ 
     Instructions:
     1. Plan a realistic and logical timeline for each day.
     2. Suggest 2-3 activities per day. For each activity provide location name, approximate coordinates (latitude and longitude), and a cost estimate in the requested currency (${tripData.budget.currency || 'USD'}) aligning with the budget mode.
     3. Suggest logical transit legs between activities or locations using the specified transport preferences. For every transit leg (flights, trains, buses), you MUST invent realistic transport numbers (e.g. train number like "Train TGV-9012", flight number like "Flight BA-234"), select logical departure and arrival times, specify the names of origin/destination stations or airports, and estimate costs in the requested currency (${tripData.budget.currency || 'USD'}).
-    4. Return ONLY the JSON array matching the schema.`;
+    4. For each day, suggest 3 recommended stays/hotels matching the budget tier and currency, 3 sightseeing places/attractions to visit, and 4 restaurants covering different cuisine types (e.g. Biryani, South Indian, Veg Only, North Indian) so the traveler can choose based on their preferences.
+    5. Return ONLY the JSON array matching the schema.`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
@@ -158,6 +205,89 @@ function generateMockItinerary(tripData) {
     const baseCost = tripData.budget.mode === 'tier' && tripData.budget.tier === 'luxury' ? 80 : 20;
     const culinaryCost = tripData.budget.mode === 'tier' && tripData.budget.tier === 'budget' ? 10 : 35;
 
+    const mockHotels = [
+      {
+        name: `${currentCity} Grand Palace`,
+        rating: '4.6★',
+        estimatedCost: Math.round(90 * rate),
+        description: 'Luxury hotel with scenic views and excellent amenities.',
+        address: '10, Royal Residency Road'
+      },
+      {
+        name: `${currentCity} Budget Inn`,
+        rating: '4.1★',
+        estimatedCost: Math.round(25 * rate),
+        description: 'Clean, comfortable rooms at an affordable rate.',
+        address: '5, Central Station Road'
+      },
+      {
+        name: `${currentCity} Premium Suites`,
+        rating: '4.4★',
+        estimatedCost: Math.round(55 * rate),
+        description: 'Modern business hotel with pool, gym, and complimentary breakfast.',
+        address: '24, Main Business Boulevard'
+      }
+    ];
+
+    const mockSightseeing = [
+      {
+        name: `Iconic Landmark of ${currentCity}`,
+        recommendedDuration: '2 hours',
+        bestTimeToVisit: 'Morning',
+        entryFee: Math.round(5 * rate),
+        description: 'Must-visit historical monument representing local culture and architecture.'
+      },
+      {
+        name: `${currentCity} Public Botanical Garden`,
+        recommendedDuration: '1.5 hours',
+        bestTimeToVisit: 'Sunset',
+        entryFee: 0,
+        description: 'Peaceful public park featuring local flora and beautiful walking trails.'
+      },
+      {
+        name: `${currentCity} Museum of Heritage`,
+        recommendedDuration: '3 hours',
+        bestTimeToVisit: 'Afternoon',
+        entryFee: Math.round(8 * rate),
+        description: 'Fascinating collection of historical relics and local art exhibitions.'
+      }
+    ];
+
+    const mockRestaurants = [
+      {
+        name: `${currentCity} Biryani Point`,
+        cuisineType: 'Biryani',
+        rating: '4.5★',
+        costForTwo: Math.round(15 * rate),
+        popularDishes: 'Special Biryani, Kebabs',
+        description: 'Famous local hotspot serving aromatic and flavorful biryanis.'
+      },
+      {
+        name: 'Sardar Pure Veg Restaurant',
+        cuisineType: 'Veg Only',
+        rating: '4.3★',
+        costForTwo: Math.round(10 * rate),
+        popularDishes: 'Paneer Butter Masala, Roti, Thali',
+        description: 'Clean family dining place serving delicious traditional vegetarian meals.'
+      },
+      {
+        name: 'Dakshin Flavors',
+        cuisineType: 'South Indian',
+        rating: '4.4★',
+        costForTwo: Math.round(6 * rate),
+        popularDishes: 'Masala Dosa, Idli, Filter Coffee',
+        description: 'Authentic quick-service restaurant serving crispy dosas and soft idlis.'
+      },
+      {
+        name: 'The Spice Bistro',
+        cuisineType: 'North Indian',
+        rating: '4.2★',
+        costForTwo: Math.round(18 * rate),
+        popularDishes: 'Butter Chicken, Dal Makhani, Garlic Naan',
+        description: 'Cozy fine dining restaurant specializing in rich North Indian curries.'
+      }
+    ];
+
     itinerary.push({
       dayNumber: i,
       dateString: currentDate.toISOString().split('T')[0],
@@ -198,7 +328,10 @@ function generateMockItinerary(tripData) {
           originStation: `${currentCity} Central Station`,
           destinationStation: `${currentCity} Market Plaza`
         }
-      ]
+      ],
+      hotels: mockHotels,
+      sightseeing: mockSightseeing,
+      restaurants: mockRestaurants
     });
   }
 

@@ -159,6 +159,9 @@ const createTrip = async (req, res, next) => {
         date: new Date(day.dateString),
         activities: day.activities,
         transits,
+        hotels: day.hotels || [],
+        sightseeing: day.sightseeing || [],
+        restaurants: day.restaurants || [],
         weather: weatherInfo
       });
     }
