@@ -25,6 +25,7 @@ app.get('/', (req, res) => {
 });
 
 // Register API Routes
+app.use('/api/auth', require('./api/authRoutes'));
 app.use('/api/trips', require('./api/routes'));
 
 // Centralized Error Handler Middleware (MUST be registered last)

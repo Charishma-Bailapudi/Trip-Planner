@@ -7,7 +7,7 @@ import TransportSuggestions from '../components/TransportSuggestions';
 import { fetchTrips, fetchTripById, generateTrip, deleteTrip } from '../services/api';
 import { Compass, Trash2, Calendar, MapPin, Loader2, Download } from 'lucide-react';
 
-const PlannerDashboard = () => {
+const PlannerDashboard = ({ user, onLogout }) => {
   const [trips, setTrips] = useState([]);
   const [activeTrip, setActiveTrip] = useState(null);
   const [selectedActivity, setSelectedActivity] = useState(null);
@@ -15,14 +15,32 @@ const PlannerDashboard = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const handleAuthError = (err) => {
+    if (err?.status === 401 || err?.message === 'Not authorized' || (err?.message && err.message.toLowerCase().includes('authorized'))) {
+      onLogout();
+    }
+  };
+
   const handleDownloadTrip = () => {
     if (!activeTrip) return;
     
     let mdContent = `# Trip Plan: ${activeTrip.title}\n`;
     mdContent += `**Dates:** ${new Date(activeTrip.startDate).toLocaleDateString()} to ${new Date(activeTrip.endDate).toLocaleDateString()}\n`;
     mdContent += `**Destinations:** ${activeTrip.destinations.map(d => `${d.name} (${d.stayDurationDays} days)`).join(', ')}\n`;
-    mdContent += `**Budget Mode:** ${activeTrip.budget.mode === 'tier' ? `${activeTrip.budget.tier} tier` : `${activeTrip.budget.limitAmount} limit`}\n\n`;
+    mdContent += `**Budget Mode:** ${activeTrip.budget.mode === 'tier' ? `${activeTrip.budget.tier} tier` : `${activeTrip.budget.limitAmount} limit`} (${activeTrip.budget.currency})\n\n`;
     mdContent += `=========================================\n\n`;
+
+    const getCurrencySymbol = (currency) => {
+      switch (currency?.toUpperCase()) {
+        case 'INR': return '₹';
+        case 'EUR': return '€';
+        case 'GBP': return '£';
+        case 'JPY': return '¥';
+        case 'USD':
+        default: return '$';
+      }
+    };
+    const sym = getCurrencySymbol(activeTrip.budget.currency);
 
     activeTrip.itinerary.forEach(day => {
       mdContent += `## Day ${day.dayNumber} - ${new Date(day.date).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}\n`;
@@ -34,7 +52,7 @@ const PlannerDashboard = () => {
       day.activities.forEach((act, idx) => {
         mdContent += `${idx + 1}. **[${act.timeSlot}] ${act.title}**\n`;
         mdContent += `   - *Location:* ${act.location.name} (${act.location.latitude}, ${act.location.longitude})\n`;
-        mdContent += `   - *Cost:* ${act.cost === 0 ? 'Free' : `$${act.cost}`}\n`;
+        mdContent += `   - *Cost:* ${act.cost === 0 ? 'Free' : `${sym}${act.cost}`}\n`;
         if (act.description) {
           mdContent += `   - *Description:* ${act.description}\n`;
         }
@@ -50,7 +68,7 @@ const PlannerDashboard = () => {
           if (tr.departureTime && tr.arrivalTime) {
             mdContent += `  - *Schedule:* ${tr.departureTime} → ${tr.arrivalTime}\n`;
           }
-          mdContent += `  - *Estimated Cost:* ${tr.estimatedCost === 0 ? 'Free' : `$${tr.estimatedCost}`}\n`;
+          mdContent += `  - *Estimated Cost:* ${tr.estimatedCost === 0 ? 'Free' : `${sym}${tr.estimatedCost}`}\n`;
           mdContent += `\n`;
         });
       }
@@ -78,6 +96,7 @@ const PlannerDashboard = () => {
       setTrips(data);
     } catch (err) {
       console.error('Failed to load trips history', err);
+      handleAuthError(err);
     }
   };
 
@@ -93,6 +112,7 @@ const PlannerDashboard = () => {
       await loadTrips(); // Reload sidebar list
     } catch (err) {
       setError(err.message || 'Failed to generate itinerary. Please try again.');
+      handleAuthError(err);
     } finally {
       setIsLoading(false);
     }
@@ -108,6 +128,7 @@ const PlannerDashboard = () => {
       setActiveTrip(fullTrip);
     } catch (err) {
       setError('Failed to fetch trip details.');
+      handleAuthError(err);
     } finally {
       setIsLoading(false);
     }
@@ -125,6 +146,7 @@ const PlannerDashboard = () => {
       await loadTrips();
     } catch (err) {
       alert('Failed to delete trip.');
+      handleAuthError(err);
     }
   };
 
@@ -136,15 +158,27 @@ const PlannerDashboard = () => {
   return (
     <div className="app-container">
       {/* Header */}
-      <header className="main-header">
+      <header className="main-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
           <div style={{ background: 'var(--primary-glow)', padding: '0.6rem', borderRadius: '12px', display: 'flex', alignItems: 'center' }}>
             <Compass size={28} style={{ color: 'var(--primary)' }} />
           </div>
           <div>
             <h1 style={{ fontSize: '1.6rem', fontWeight: 800, letterSpacing: '-0.02em', margin: 0 }}>AI Trip Planner</h1>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Spec-Driven Travel Companion</p>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Spec-Driven Travel Companion</p>
           </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.2rem' }}>
+          <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+            Welcome, <strong>{user?.username}</strong>
+          </span>
+          <button 
+            onClick={onLogout} 
+            className="btn btn-secondary" 
+            style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', borderRadius: '6px' }}
+          >
+            Sign Out
+          </button>
         </div>
       </header>
 
@@ -156,7 +190,7 @@ const PlannerDashboard = () => {
           
           <PreferenceForm onSubmit={handleGenerate} isLoading={isLoading} />
 
-          {activeTrip && <TransportSuggestions itinerary={activeTrip.itinerary} />}
+          {activeTrip && <TransportSuggestions itinerary={activeTrip.itinerary} currency={activeTrip.budget.currency} />}
 
           {/* Saved Trips List */}
           <div className="glass-panel" style={{ padding: '1.5rem' }}>
@@ -292,6 +326,7 @@ const PlannerDashboard = () => {
                 activeActivityId={selectedActivity ? selectedActivity._id : null}
                 selectedDayIndex={selectedDayIndex}
                 setSelectedDayIndex={setSelectedDayIndex}
+                currency={activeTrip.budget.currency}
               />
             </div>
           ) : (

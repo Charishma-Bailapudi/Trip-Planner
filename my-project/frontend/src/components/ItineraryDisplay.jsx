@@ -1,7 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, MapPin, DollarSign, Calendar, Navigation, Eye } from 'lucide-react';
 
-const ItineraryDisplay = ({ itinerary, onActivityClick, activeActivityId, selectedDayIndex, setSelectedDayIndex }) => {
+const getCurrencySymbol = (currency) => {
+  switch (currency?.toUpperCase()) {
+    case 'INR': return '₹';
+    case 'EUR': return '€';
+    case 'GBP': return '£';
+    case 'JPY': return '¥';
+    case 'USD':
+    default: return '$';
+  }
+};
+
+const ItineraryDisplay = ({ itinerary, onActivityClick, activeActivityId, selectedDayIndex, setSelectedDayIndex, currency }) => {
   
   // Safe guard: Reset day selection if it exceeds bounds of the new itinerary (prevents blank screen)
   useEffect(() => {
@@ -78,10 +89,9 @@ const ItineraryDisplay = ({ itinerary, onActivityClick, activeActivityId, select
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--secondary)' }}>
                     <Clock size={16} />
                     <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{activity.timeSlot}</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', background: 'rgba(46, 213, 115, 0.1)', color: 'var(--success)', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600 }}>
-                    <DollarSign size={12} />
-                    <span>{activity.cost === 0 ? 'Free' : activity.cost}</span>
+                   </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', background: 'rgba(46, 213, 115, 0.1)', color: 'var(--success)', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600 }}>
+                    <span>{activity.cost === 0 ? 'Free' : `${getCurrencySymbol(currency)}${activity.cost}`}</span>
                   </div>
                 </div>
 
@@ -122,7 +132,7 @@ const ItineraryDisplay = ({ itinerary, onActivityClick, activeActivityId, select
                       </span>
                       {transit.estimatedCost > 0 && (
                         <span style={{ color: 'var(--success)', fontSize: '0.8rem', fontWeight: 500 }}>
-                          • Est. Cost: ${transit.estimatedCost}
+                          • Est. Cost: {getCurrencySymbol(currency)}{transit.estimatedCost}
                         </span>
                       )}
                     </div>

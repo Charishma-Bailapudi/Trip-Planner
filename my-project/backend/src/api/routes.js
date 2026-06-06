@@ -7,7 +7,10 @@ const {
   deleteTrip
 } = require('../controllers/tripController');
 
+const { protect } = require('../middleware/authMiddleware');
+
 // Define routes for /api/trips
+router.use(protect);
 router.route('/')
   .post(createTrip)
   .get(getTrips);

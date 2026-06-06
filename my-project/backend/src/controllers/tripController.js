@@ -39,6 +39,7 @@ const createTrip = async (req, res, next) => {
 
       // 2. Validate/calculate transits between sequential activities
       const transits = [];
+      const rate = budget.currency === 'INR' ? 80 : budget.currency === 'EUR' ? 0.9 : budget.currency === 'GBP' ? 0.8 : 1;
       if (day.activities && day.activities.length > 1) {
         for (let idx = 0; idx < day.activities.length - 1; idx++) {
           const act1 = day.activities[idx];
@@ -63,7 +64,7 @@ const createTrip = async (req, res, next) => {
               destination: act2.location.name,
               mode: transitOpt.mode,
               durationMinutes: transitOpt.durationMinutes,
-              estimatedCost: transitOpt.estimatedCost,
+              estimatedCost: Math.round(transitOpt.estimatedCost * rate),
               transitNumber: transitOpt.mode === 'train' ? `Train TR-${100 + idx}` : transitOpt.mode === 'flight' ? `Flight FL-${200 + idx}` : transitOpt.mode === 'bus' ? `Bus B-${10 + idx}` : 'Local Transit',
               departureTime: depTime,
               arrivalTime: arrTime,
@@ -76,7 +77,7 @@ const createTrip = async (req, res, next) => {
               destination: act2.location.name,
               mode: transportPreferences[0] || 'driving',
               durationMinutes: 20,
-              estimatedCost: 10,
+              estimatedCost: Math.round(10 * rate),
               transitNumber: 'Local Route',
               departureTime: '12:00 PM',
               arrivalTime: '12:20 PM',
@@ -101,6 +102,7 @@ const createTrip = async (req, res, next) => {
 
     // Create and save new Trip document
     const trip = new Trip({
+      user: req.user._id,
       title,
       destinations,
       startDate: new Date(startDate),
@@ -123,7 +125,7 @@ const createTrip = async (req, res, next) => {
 // List all trips (brief metadata only)
 const getTrips = async (req, res, next) => {
   try {
-    const trips = await Trip.find({}, { title: 1, destinations: 1, startDate: 1, endDate: 1, 'budget.mode': 1, createdAt: 1 }).sort({ createdAt: -1 });
+    const trips = await Trip.find({ user: req.user._id }, { title: 1, destinations: 1, startDate: 1, endDate: 1, 'budget.mode': 1, createdAt: 1 }).sort({ createdAt: -1 });
     res.json(trips);
   } catch (error) {
     next(error);
@@ -138,6 +140,10 @@ const getTripById = async (req, res, next) => {
       res.status(404);
       throw new Error('Trip not found');
     }
+    if (trip.user.toString() !== req.user._id.toString()) {
+      res.status(401);
+      throw new Error('Not authorized to view this trip');
+    }
     res.json(trip);
   } catch (error) {
     next(error);
@@ -147,11 +153,16 @@ const getTripById = async (req, res, next) => {
 // Delete a trip
 const deleteTrip = async (req, res, next) => {
   try {
-    const trip = await Trip.findByIdAndDelete(req.params.id);
+    const trip = await Trip.findById(req.params.id);
     if (!trip) {
       res.status(404);
       throw new Error('Trip not found');
     }
+    if (trip.user.toString() !== req.user._id.toString()) {
+      res.status(401);
+      throw new Error('Not authorized to delete this trip');
+    }
+    await trip.deleteOne();
     res.json({ success: true, message: 'Trip successfully deleted' });
   } catch (error) {
     next(error);

@@ -9,6 +9,7 @@ const PreferenceForm = ({ onSubmit, isLoading }) => {
   const [budgetMode, setBudgetMode] = useState('tier');
   const [budgetTier, setBudgetTier] = useState('moderate');
   const [budgetLimit, setBudgetLimit] = useState('');
+  const [budgetCurrency, setBudgetCurrency] = useState('USD');
   const [transportPreferences, setTransportPreferences] = useState(['flight', 'train']);
   const [tripStructure, setTripStructure] = useState('linear');
   const [error, setError] = useState('');
@@ -85,7 +86,7 @@ const PreferenceForm = ({ onSubmit, isLoading }) => {
         mode: budgetMode,
         tier: budgetMode === 'tier' ? budgetTier : undefined,
         limitAmount: budgetMode !== 'tier' ? Number(budgetLimit) : undefined,
-        currency: 'USD'
+        currency: budgetCurrency
       },
       transportPreferences,
       tripStructure
@@ -222,7 +223,7 @@ const PreferenceForm = ({ onSubmit, isLoading }) => {
             </>
           ) : (
             <>
-              <label htmlFor="budget-limit">Limit Amount (USD)</label>
+              <label htmlFor="budget-limit">Limit Amount ({budgetCurrency})</label>
               <input 
                 id="budget-limit"
                 type="number" 
@@ -237,13 +238,26 @@ const PreferenceForm = ({ onSubmit, isLoading }) => {
         </div>
       </div>
 
-      <div>
-        <label htmlFor="trip-structure">Trip Structure</label>
-        <select id="trip-structure" value={tripStructure} onChange={(e) => setTripStructure(e.target.value)}>
-          <option value="linear">Linear Route (Stay Sequence)</option>
-          <option value="hub_and_spoke">Hub & Spoke (Day trips from base)</option>
-          <option value="flex">Flexible Route (AI Suggested)</option>
-        </select>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+        <div>
+          <label htmlFor="budget-currency">Preferred Currency</label>
+          <select id="budget-currency" value={budgetCurrency} onChange={(e) => setBudgetCurrency(e.target.value)}>
+            <option value="USD">USD ($ - Dollar)</option>
+            <option value="INR">INR (₹ - Rupee)</option>
+            <option value="EUR">EUR (€ - Euro)</option>
+            <option value="GBP">GBP (£ - Pound)</option>
+            <option value="JPY">JPY (¥ - Yen)</option>
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="trip-structure">Trip Structure</label>
+          <select id="trip-structure" value={tripStructure} onChange={(e) => setTripStructure(e.target.value)}>
+            <option value="linear">Linear Route (Stay Sequence)</option>
+            <option value="hub_and_spoke">Hub & Spoke (Day trips from base)</option>
+            <option value="flex">Flexible Route (AI Suggested)</option>
+          </select>
+        </div>
       </div>
 
       <div>

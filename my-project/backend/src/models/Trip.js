@@ -60,6 +60,11 @@ const ItineraryDaySchema = new mongoose.Schema({
 
 // Main Trip schema
 const TripSchema = new mongoose.Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: [true, 'User owner is required']
+  },
   title: {
     type: String,
     required: [true, 'Trip title is required']

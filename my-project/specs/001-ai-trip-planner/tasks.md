@@ -105,6 +105,24 @@
 
 ---
 
+## Phase 7: Authentication & Currency Selection (Completed)
+
+**Goal**: Implement secure user registration/login, session management, and flexible currency configurations (USD, INR, EUR, GBP, JPY) across the planner.
+
+- [x] T028 [US4] Implement User mongoose model at `backend/src/models/User.js`
+- [x] T029 [US4] Implement JWT authorization middleware at `backend/src/middleware/authMiddleware.js`
+- [x] T030 [US4] Implement register, login, and profile controllers at `backend/src/controllers/authController.js`
+- [x] T031 [US4] Define authentication routes at `backend/src/api/authRoutes.js` and register in `backend/src/server.js`
+- [x] T032 [US4] Update `backend/src/models/Trip.js` schema to store ownership mapping to `User`
+- [x] T033 [US4] Secure all trip endpoints in `backend/src/controllers/tripController.js` to ensure users only CRUD their own trips
+- [x] T034 [US4] Create frontend `AuthPage.jsx` supporting login/register toggle and styling validation
+- [x] T035 [US4] Integrate dynamic session management in `frontend/src/App.jsx` and request header interceptors in `frontend/src/services/api.js`
+- [x] T036 Add dynamic currency selection dropdown in `frontend/src/components/PreferenceForm.jsx`
+- [x] T037 Update `ItineraryDisplay.jsx` and `TransportSuggestions.jsx` to render dynamic currency symbols (₹, €, £, ¥, $) based on preferences
+- [x] T038 Update download itinerary generator in `PlannerDashboard.jsx` to print currency-aligned cost symbols
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies

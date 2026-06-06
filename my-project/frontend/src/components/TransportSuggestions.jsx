@@ -19,7 +19,18 @@ const getTransportIcon = (mode) => {
   }
 };
 
-const TransportSuggestions = ({ itinerary }) => {
+const getCurrencySymbol = (currency) => {
+  switch (currency?.toUpperCase()) {
+    case 'INR': return '₹';
+    case 'EUR': return '€';
+    case 'GBP': return '£';
+    case 'JPY': return '¥';
+    case 'USD':
+    default: return '$';
+  }
+};
+
+const TransportSuggestions = ({ itinerary, currency }) => {
   if (!itinerary) return null;
 
   // Extract and aggregate all transit segments
@@ -63,7 +74,7 @@ const TransportSuggestions = ({ itinerary }) => {
         </div>
         <div style={{ background: 'var(--bg-secondary)', padding: '0.75rem', borderRadius: '8px' }}>
           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Est. Cost</span>
-          <strong style={{ fontSize: '1.1rem', color: 'var(--success)' }}>${totalCost}</strong>
+          <strong style={{ fontSize: '1.1rem', color: 'var(--success)' }}>{getCurrencySymbol(currency)}{totalCost}</strong>
         </div>
       </div>
 
@@ -99,7 +110,7 @@ const TransportSuggestions = ({ itinerary }) => {
               </div>
               <div style={{ textAlign: 'right' }}>
                 <span style={{ fontSize: '0.75rem', color: 'var(--success)', fontWeight: 600 }}>
-                  {transit.estimatedCost > 0 ? `$${transit.estimatedCost}` : 'Free'}
+                  {transit.estimatedCost > 0 ? `${getCurrencySymbol(currency)}${transit.estimatedCost}` : 'Free'}
                 </span>
               </div>
             </div>

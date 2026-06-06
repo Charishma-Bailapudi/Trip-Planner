@@ -80,14 +80,14 @@ const generateItinerary = async (tripData) => {
     - Destinations: ${JSON.stringify(tripData.destinations)}
     - Start Date: ${tripData.startDate}
     - End Date: ${tripData.endDate}
-    - Budget Preference: Mode is "${tripData.budget.mode}" with values: ${JSON.stringify(tripData.budget)}
+    - Budget Preference: Mode is "${tripData.budget.mode}" with values: ${JSON.stringify(tripData.budget)} (Requested Currency is: ${tripData.budget.currency || 'USD'})
     - Transport Preferences: ${JSON.stringify(tripData.transportPreferences)}
     - Trip Layout Structure: "${tripData.tripStructure}" (linear = chronological destination stays, hub_and_spoke = base destination with daily side trips, flex = unstructured optimal ordering)
 
     Instructions:
     1. Plan a realistic and logical timeline for each day.
-    2. Suggest 2-3 activities per day. For each activity provide location name, approximate coordinates (latitude and longitude), and a cost estimate aligning with the budget mode.
-    3. Suggest logical transit legs between activities or locations using the specified transport preferences. For every transit leg (flights, trains, buses), you MUST invent realistic transport numbers (e.g. train number like "Train TGV-9012", flight number like "Flight BA-234"), select logical departure and arrival times, and specify the names of origin/destination stations or airports.
+    2. Suggest 2-3 activities per day. For each activity provide location name, approximate coordinates (latitude and longitude), and a cost estimate in the requested currency (${tripData.budget.currency || 'USD'}) aligning with the budget mode.
+    3. Suggest logical transit legs between activities or locations using the specified transport preferences. For every transit leg (flights, trains, buses), you MUST invent realistic transport numbers (e.g. train number like "Train TGV-9012", flight number like "Flight BA-234"), select logical departure and arrival times, specify the names of origin/destination stations or airports, and estimate costs in the requested currency (${tripData.budget.currency || 'USD'}).
     4. Return ONLY the JSON array matching the schema.`;
 
     const result = await model.generateContent(prompt);
@@ -112,9 +112,13 @@ function generateMockItinerary(tripData) {
 
   const itinerary = [];
   
+  // Rate calculation for mock costs
+  const rate = tripData.budget.currency === 'INR' ? 80 : tripData.budget.currency === 'EUR' ? 0.9 : tripData.budget.currency === 'GBP' ? 0.8 : 1;
+
   // Coordinates helper mock values for common cities
   const cityCoords = {
     paris: { lat: 48.8566, lng: 2.3522 },
+    rose: { lat: 41.9028, lng: 12.4964 },
     rome: { lat: 41.9028, lng: 12.4964 },
     london: { lat: 51.5074, lng: -0.1278 },
     tokyo: { lat: 35.6762, lng: 139.6503 },
@@ -151,6 +155,9 @@ function generateMockItinerary(tripData) {
 
     const cityLocation = getCoords(currentCity);
 
+    const baseCost = tripData.budget.mode === 'tier' && tripData.budget.tier === 'luxury' ? 80 : 20;
+    const culinaryCost = tripData.budget.mode === 'tier' && tripData.budget.tier === 'budget' ? 10 : 35;
+
     itinerary.push({
       dayNumber: i,
       dateString: currentDate.toISOString().split('T')[0],
@@ -164,7 +171,7 @@ function generateMockItinerary(tripData) {
             latitude: cityLocation.lat,
             longitude: cityLocation.lng
           },
-          cost: tripData.budget.mode === 'tier' && tripData.budget.tier === 'luxury' ? 80 : 20
+          cost: Math.round(baseCost * rate)
         },
         {
           timeSlot: 'Afternoon',
@@ -175,7 +182,7 @@ function generateMockItinerary(tripData) {
             latitude: cityLocation.lat + 0.005,
             longitude: cityLocation.lng - 0.004
           },
-          cost: tripData.budget.mode === 'tier' && tripData.budget.tier === 'budget' ? 10 : 35
+          cost: Math.round(culinaryCost * rate)
         }
       ],
       transits: [
@@ -184,7 +191,7 @@ function generateMockItinerary(tripData) {
           destination: `${currentCity} Market District`,
           mode: tripData.transportPreferences[0] || 'walk',
           durationMinutes: 15,
-          estimatedCost: 5,
+          estimatedCost: Math.round(5 * rate),
           transitNumber: tripData.transportPreferences[0] === 'train' ? 'Train TGV-9012' : tripData.transportPreferences[0] === 'flight' ? 'Flight AF-120' : 'Bus B-89',
           departureTime: '10:15 AM',
           arrivalTime: '10:30 AM',

@@ -51,6 +51,14 @@ As a traveler, I want to add multiple destinations to a single trip, so that I c
 
 1. **Given** a trip with multiple destinations, **When** the user generates the itinerary, **Then** the itinerary lists destinations in the chronological order specified, including transit legs between them.
 
+### User Story 4 - User Authentication (Priority: P2)
+
+As a traveler, I want to create an account and log in securely, so that my trip plans are saved privately under my profile and cannot be accessed or deleted by others.
+
+**Why this priority**: Necessary for securing user data, although secondary to core itinerary planning.
+
+**Independent Test**: Register a new user, log out, log in, generate a trip, verify that only the logged-in user can view and manage that trip.
+
 ### Edge Cases
 
 - What happens when the user's selected destination is in an off-season or experiencing severe weather?
@@ -68,10 +76,12 @@ As a traveler, I want to add multiple destinations to a single trip, so that I c
 - **FR-005**: System MUST display available transport options (e.g., flight, train, driving routes) matching the user's preferences.
 - **FR-006**: System MUST classify and filter itinerary suggestions according to user-selected budget modes: Simple Tier-based Budget (Budget, Moderate, Luxury), Strict Daily Limits (user-defined max spending per day), or Overall Trip Budget Caps distributed dynamically.
 - **FR-007**: System MUST support multi-destination trips structured by user-selected trip structures: Linear Sequences (chronological stays), Hub-and-Spoke (day trips from a primary base), or Flex-Route/Unstructured (AI-suggested optimal destination ordering).
+- **FR-008**: System MUST support selecting preferred currency (USD, INR, EUR, GBP, JPY) during trip configuration, displaying all costs and transits accordingly.
 
 ### Key Entities *(include if feature involves data)*
 
-- **Trip**: Represents the overall travel plan. Contains ID, destination(s), start date, end date, budget preferences, transport preferences, and the generated itinerary.
+- **User**: Represents a registered account. Contains ID, username, email, and hashed password.
+- **Trip**: Represents the overall travel plan. Contains ID, user reference, destination(s), start date, end date, budget preferences, transport preferences, and the generated itinerary.
 - **ItineraryDay**: Represents a single day in the trip. Contains day number, date, list of activities, and transit segments.
 - **Activity**: Represents a specific plan or attraction in the itinerary. Contains time slot, title, description, location details, and estimated cost.
 - **TransitSegment**: Represents travel between locations or destinations. Contains start location, end location, mode of transport, and estimated duration.
